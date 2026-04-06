@@ -14,13 +14,15 @@ import { authService } from '@/lib/services/auth';
 type AuthContextValue = {
   user: SessionUser | null;
   ready: boolean;
-  login: (email: string, password: string) => { success: true } | { success: false; error: string };
+  login: (
+    email: string,
+    password: string,
+  ) => Promise<{ success: true } | { success: false; error: string }>;
   register: (
     name: string,
     email: string,
     password: string,
-    role: 'ADMIN' | 'COLABORADOR'
-  ) => { success: true } | { success: false; error: string };
+  ) => Promise<{ success: true } | { success: false; error: string }>;
   logout: () => void;
 };
 
@@ -31,23 +33,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setUser(authService.getSession());
-    setReady(true);
+    let cancelled = false;
+    (async () => {
+      const stored = authService.getSession();
+      if (!stored) {
+        if (!cancelled) {
+          setUser(null);
+          setReady(true);
+        }
+        return;
+      }
+      const validated = await authService.validateSession();
+      if (!cancelled) {
+        setUser(validated);
+        setReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const login = useCallback((email: string, password: string) => {
-    const result = authService.login(email, password);
+  const login = useCallback(async (email: string, password: string) => {
+    const result = await authService.login(email, password);
     if (result.success) setUser(result.user);
-    return result;
+    return result.success ? { success: true as const } : { success: false, error: result.error };
   }, []);
 
-  const register = useCallback(
-    (name: string, email: string, password: string, role: 'ADMIN' | 'COLABORADOR') => {
-      const result = authService.register(name, email, password, role);
-      return result;
-    },
-    []
-  );
+  const register = useCallback(async (name: string, email: string, password: string) => {
+    const result = await authService.register(name, email, password);
+    if (result.success) setUser(result.user);
+    return result.success ? { success: true as const } : { success: false, error: result.error };
+  }, []);
 
   const logout = useCallback(() => {
     authService.logout();

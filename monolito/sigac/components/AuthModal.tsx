@@ -3,43 +3,44 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import type { Role } from '@/lib/types';
+
+const MIN_PASSWORD = 8;
 
 export default function AuthModal() {
   const router = useRouter();
   const { login, register } = useAuth();
   const [isSignUp, setIsSignUp] = useState(true);
   const [error, setError] = useState('');
-  const [registerSuccess, setRegisterSuccess] = useState(false);
 
-  // Register fields
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<Role>('COLABORADOR');
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setRegisterSuccess(false);
     const trimmedName = name.trim();
     const trimmedEmail = email.trim();
     if (!trimmedName || !trimmedEmail || !password) {
       setError('Completa nombre, email y contraseña.');
       return;
     }
-    const result = register(trimmedName, trimmedEmail, password, role);
+    if (password.length < MIN_PASSWORD) {
+      setError(`La contraseña debe tener al menos ${MIN_PASSWORD} caracteres.`);
+      return;
+    }
+    const result = await register(trimmedName, trimmedEmail, password);
     if (result.success) {
-      setRegisterSuccess(true);
       setName('');
       setEmail('');
       setPassword('');
+      router.push('/dashboard');
     } else {
       setError(result.error);
     }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     const trimmedEmail = email.trim();
@@ -47,7 +48,7 @@ export default function AuthModal() {
       setError('Ingresa email y contraseña.');
       return;
     }
-    const result = login(trimmedEmail, password);
+    const result = await login(trimmedEmail, password);
     if (result.success) {
       router.push('/dashboard');
     } else {
@@ -58,7 +59,6 @@ export default function AuthModal() {
   return (
     <div className="absolute inset-0 flex items-center justify-center p-4 overflow-y-auto">
       <div className="glass-panel w-full max-w-[380px] min-h-[460px] rounded-2xl p-6 relative my-auto flex flex-col">
-        {/* Toggle más pequeño */}
         <div className="relative flex gap-0.5 p-1 rounded-full bg-white/10 mb-6 w-fit">
           <span
             className="absolute top-1 bottom-1 rounded-full bg-white/25 border border-white/20 pointer-events-none"
@@ -90,14 +90,7 @@ export default function AuthModal() {
             {error}
           </div>
         )}
-        {registerSuccess && (
-          <div className="mb-3 rounded-lg bg-green-500/20 border border-green-400/40 px-3 py-2 text-xs text-green-200">
-            Cuenta creada. Ya puedes iniciar sesión.
-          </div>
-        )}
-
         <div className="relative min-h-[320px] flex-1">
-          {/* Registro */}
           <div
             className="absolute inset-0 space-y-3"
             style={{
@@ -108,6 +101,9 @@ export default function AuthModal() {
             }}
           >
             <h1 className="text-xl font-bold text-white mb-4">Crear cuenta</h1>
+            <p className="text-white/55 text-xs mb-2">
+              El registro público crea una cuenta con rol colaborador.
+            </p>
             <form onSubmit={handleRegister} className="space-y-3">
               <input
                 type="text"
@@ -140,29 +136,11 @@ export default function AuthModal() {
                 </span>
                 <input
                   type="password"
-                  placeholder="Contraseña"
+                  placeholder="Contraseña (mín. 8 caracteres)"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="glass-input w-full rounded-lg pl-9 pr-3 h-10 text-white text-sm"
                 />
-              </div>
-              <div>
-                <label className="block text-white/70 text-xs mb-1">Rol</label>
-                <div className="relative">
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value as Role)}
-                    className="glass-input w-full rounded-lg pl-3 pr-8 h-10 text-white text-sm appearance-none bg-transparent"
-                  >
-                    <option value="COLABORADOR">Colaborador</option>
-                    <option value="ADMIN">Admin</option>
-                  </select>
-                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M6 9l6 6 6-6" />
-                    </svg>
-                  </span>
-                </div>
               </div>
               <button type="submit" className="glass-button w-full h-10 rounded-lg font-medium text-white text-sm hover:opacity-95 transition-opacity mt-1">
                 Crear cuenta
@@ -170,7 +148,6 @@ export default function AuthModal() {
             </form>
           </div>
 
-          {/* Login */}
           <div
             className="absolute inset-0 space-y-3"
             style={{

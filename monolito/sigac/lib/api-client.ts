@@ -1,11 +1,20 @@
 /**
- * Cliente HTTP preparado para conectar con API NestJS.
- * Por ahora no hace llamadas reales; los servicios mock usan el store.
- * Cuando el backend esté listo: reemplazar en auth/activities/availability
- * las lecturas del store por fetch a baseURL con Authorization: Bearer token.
+ * Cliente HTTP para la API NestJS (baseURL = NEXT_PUBLIC_API_URL).
  */
 
 const baseURL = process.env.NEXT_PUBLIC_API_URL ?? '';
+
+async function readErrorMessage(res: Response): Promise<string> {
+  const text = await res.text();
+  try {
+    const j = JSON.parse(text) as { message?: string | string[] };
+    if (Array.isArray(j.message)) return j.message.join('. ');
+    if (typeof j.message === 'string') return j.message;
+  } catch {
+    // ignore
+  }
+  return text || `Error ${res.status}`;
+}
 
 export function getAuthHeader(): Record<string, string> {
   if (typeof window === 'undefined') return {};
@@ -22,7 +31,7 @@ export function getAuthHeader(): Record<string, string> {
 
 export async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${baseURL}${path}`, { headers: getAuthHeader() });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await readErrorMessage(res));
   return res.json();
 }
 
@@ -32,7 +41,18 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await readErrorMessage(res));
+  return res.json();
+}
+
+/** POST sin JWT (login, registro). */
+export async function apiPostPublic<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${baseURL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await readErrorMessage(res));
   return res.json();
 }
 
@@ -41,5 +61,5 @@ export async function apiDelete(path: string): Promise<void> {
     method: 'DELETE',
     headers: getAuthHeader(),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await readErrorMessage(res));
 }
