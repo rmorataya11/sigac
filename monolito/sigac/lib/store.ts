@@ -1,9 +1,8 @@
 'use client';
 
-import type { User, Availability } from './types';
+import type { User } from './types';
 
 const USERS_KEY = 'sigac_users';
-const AVAILABILITY_KEY = 'sigac_availability';
 const SESSION_KEY = 'sigac_session';
 
 function loadJson<T>(key: string, fallback: T): T {
@@ -45,12 +44,6 @@ export const store = {
   },
   setUsers(users: User[]): void {
     saveJson(USERS_KEY, users);
-  },
-  getAvailability(): Availability[] {
-    return loadJson<Availability[]>(AVAILABILITY_KEY, []);
-  },
-  setAvailability(availability: Availability[]): void {
-    saveJson(AVAILABILITY_KEY, availability);
   },
   getSession(): string | null {
     if (typeof window === 'undefined') return null;

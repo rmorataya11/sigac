@@ -12,7 +12,7 @@ export default function DashboardPage() {
   const users = store.getUsers();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
-  const availability = availabilityService.getAll();
+  const [myAvailabilityCount, setMyAvailabilityCount] = useState(0);
 
   const totalUsers = users.length;
   const admins = users.filter((u) => u.role === 'ADMIN').length;
@@ -37,6 +37,25 @@ export default function DashboardPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!user || user.role === 'ADMIN') {
+      setMyAvailabilityCount(0);
+      return;
+    }
+    let cancelled = false;
+    availabilityService
+      .listMine()
+      .then((list) => {
+        if (!cancelled) setMyAvailabilityCount(list.length);
+      })
+      .catch(() => {
+        if (!cancelled) setMyAvailabilityCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   const today = new Date().toISOString().slice(0, 10);
   const upcomingActivities = useMemo(() => {
     return activities
@@ -49,7 +68,6 @@ export default function DashboardPage() {
       .sort((a, b) => activityDateOnly(a).localeCompare(activityDateOnly(b)));
   }, [activities, today]);
 
-  const myAvailability = user ? availabilityService.getByUserId(user.id) : [];
   const nextActivity = upcomingActivities[0];
 
   return (
@@ -123,7 +141,7 @@ export default function DashboardPage() {
           </section>
           <section className="glass-panel rounded-2xl p-4">
             <h2 className="text-lg font-semibold mb-2">Estado personal</h2>
-            <p className="text-white/70 text-sm">Registros de disponibilidad: {myAvailability.length}</p>
+            <p className="text-white/70 text-sm">Registros de disponibilidad: {myAvailabilityCount}</p>
             {nextActivity && (
               <p className="text-white/70 text-sm mt-1">
                 Próxima actividad: <strong>{nextActivity.title}</strong> ({activityDateOnly(nextActivity)})

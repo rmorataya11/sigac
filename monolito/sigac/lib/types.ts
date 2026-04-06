@@ -49,14 +49,25 @@ export function activityDateOnly(a: Pick<Activity, 'activityDate'>): string {
   return s.length >= 10 ? s.slice(0, 10) : s;
 }
 
-/** Estado de disponibilidad */
-export type AvailabilityStatus = 'AVAILABLE' | 'UNAVAILABLE';
+/** Usuario resumido en disponibilidad global (API) */
+export interface AvailabilityUserSummary {
+  id: string;
+  fullName: string;
+  email: string;
+}
 
-/** Registro de disponibilidad */
+/** Registro de disponibilidad (GET /availability/me o /availability/global) */
 export interface Availability {
   id: string;
   userId: string;
-  userName: string;
-  date: string; // YYYY-MM-DD
-  status: AvailabilityStatus;
+  date: string;
+  startTime: string;
+  endTime: string;
+  user?: AvailabilityUserSummary;
+}
+
+/** Fecha YYYY-MM-DD desde el JSON de la API. */
+export function availabilityDateOnly(a: Pick<Availability, 'date'>): string {
+  const s = a.date;
+  return typeof s === 'string' && s.length >= 10 ? s.slice(0, 10) : String(s);
 }

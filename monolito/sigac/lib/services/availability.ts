@@ -1,46 +1,32 @@
 'use client';
 
-import type { Availability, AvailabilityStatus } from '@/lib/types';
-import { store } from '@/lib/store';
+import type { Availability } from '@/lib/types';
+import { apiDelete, apiGet, apiPost } from '@/lib/api-client';
 
-function nextId(list: Availability[]): string {
-  const nums = list.map((a) => parseInt(a.id.replace(/\D/g, '') || '0', 10));
-  return 'd' + String((nums.length ? Math.max(...nums) : 0) + 1);
-}
+export type CreateAvailabilityInput = {
+  date: string;
+  startTime: string;
+  endTime: string;
+};
 
 export const availabilityService = {
-  getAll(): Availability[] {
-    return store.getAvailability();
+  async listMine(): Promise<Availability[]> {
+    return apiGet<Availability[]>('/availability/me');
   },
 
-  getByUserId(userId: string): Availability[] {
-    return store.getAvailability().filter((a) => a.userId === userId);
+  async listGlobal(): Promise<Availability[]> {
+    return apiGet<Availability[]>('/availability/global');
   },
 
-  register(
-    userId: string,
-    userName: string,
-    date: string,
-    status: AvailabilityStatus
-  ): { success: true; item: Availability } | { success: false; error: string } {
-    const list = store.getAvailability();
-    const exists = list.some((a) => a.userId === userId && a.date === date);
-    if (exists) {
-      return { success: false, error: 'Ya tienes un registro para esta fecha.' };
-    }
-    const newItem: Availability = {
-      id: nextId(list),
-      userId,
-      userName,
-      date,
-      status,
-    };
-    store.setAvailability([...list, newItem]);
-    return { success: true, item: newItem };
+  async create(input: CreateAvailabilityInput): Promise<Availability> {
+    return apiPost<Availability>('/availability', {
+      date: input.date,
+      startTime: input.startTime,
+      endTime: input.endTime,
+    });
   },
 
-  deleteById(id: string): void {
-    const list = store.getAvailability().filter((a) => a.id !== id);
-    store.setAvailability(list);
+  async remove(id: string): Promise<void> {
+    await apiDelete(`/availability/${id}`);
   },
 };
