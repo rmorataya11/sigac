@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  COLABORADOR
+}
+
+enum ActivityStatus {
+  DRAFT
+  CONFIRMED
+  CANCELLED
+  FINALIZADA
+}
+
+model User {
+  id           String   @id @default(cuid())
+  fullName     String
+  email        String   @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  availabilities       Availability[]
+  activitiesCreated    Activity[]            @relation("ActivityCreator")
+  activityParticipants ActivityParticipant[]
+}
+
+model Availability {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  startTime String
+  endTime   String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Activity {
+  id            String          @id @default(cuid())
+  title         String
+  description   String?
+  activityDate  DateTime        @db.Date
+  startTime     String
+  endTime       String
+  minimumQuorum Int
+  status        ActivityStatus  @default(DRAFT)
+  createdById   String
+
+  createdBy    User                  @relation("ActivityCreator", fields: [createdById], references: [id])
+  participants ActivityParticipant[]
+
+  @@index([createdById])
+}
+
+model ActivityParticipant {
+  id         String @id @default(cuid())
+  activityId String
+  userId     String
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, userId])
+}

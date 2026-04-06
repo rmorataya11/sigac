@@ -1,0 +1,233 @@
+SIGAC Backend - Cursor Instructions
+
+==================================================
+CONTEXTO GENERAL
+==================================================
+
+Quiero que construyas un backend para SIGAC (Sistema Integral de Gestión de Actividades Colaborativas).
+
+Objetivo del sistema:
+Permitir autenticación de usuarios, gestión de disponibilidad horaria de colaboradores y coordinación de actividades colaborativas, validando quórum y evitando conflictos de horario.
+
+Arquitectura obligatoria:
+- Monolito Modular
+- NestJS con TypeScript
+- Prisma ORM
+- PostgreSQL
+- API REST
+- JWT para autenticación
+- RBAC con roles ADMIN y COLABORADOR
+- Swagger/OpenAPI
+- Validación con class-validator
+- bcrypt para contraseñas
+- Logging básico
+- Health check endpoint
+
+Reglas obligatorias:
+- No microservicios
+- No MongoDB
+- No Redis
+- No BullMQ
+- No colas
+- No event-driven architecture
+- No CQRS
+- No WebSockets
+- No lógica de negocio en controllers
+- No acceso directo a Prisma desde controllers
+- Toda lógica debe estar en services
+- Acceso a datos encapsulado en repositories
+- Arquitectura modular estricta
+
+Módulos:
+- auth
+- availability
+- coordination
+- health
+- common
+- database
+
+Dominio:
+- user
+- availability
+- activity
+- activityParticipant
+- quorum
+- conflict
+
+IMPORTANTE:
+No usar términos como tutor, slot, booking o student.
+
+==================================================
+FORMA DE TRABAJO
+==================================================
+
+Vamos a construir el proyecto por bloques.
+NO hacer todo de una vez.
+
+En cada bloque:
+1. Explicar qué se hará
+2. Implementar
+3. Decir qué probar manualmente
+
+==================================================
+BLOQUES
+==================================================
+
+BLOQUE 1 - BASE DEL PROYECTO
+
+Crear estructura:
+
+src/
+- main.ts
+- app.module.ts
+- common/
+- database/
+- health/
+- modules/
+  - auth/
+  - availability/
+  - coordination/
+
+Configurar:
+- Swagger
+- ValidationPipe global
+- Prisma como módulo reusable
+- Endpoint /health
+
+NO implementar lógica compleja.
+
+--------------------------------------------------
+
+BLOQUE 2 - PRISMA
+
+Crear schema con:
+
+User:
+- id
+- fullName
+- email
+- passwordHash
+- role
+- createdAt
+- updatedAt
+
+Availability:
+- id
+- userId
+- date
+- startTime
+- endTime
+
+Activity:
+- id
+- title
+- description
+- activityDate
+- startTime
+- endTime
+- minimumQuorum
+- status
+- createdById
+
+ActivityParticipant:
+- id
+- activityId
+- userId
+
+Agregar:
+- relaciones
+- enums
+- migraciones
+- seed (1 admin, 2 users)
+
+--------------------------------------------------
+
+BLOQUE 3 - AUTH
+
+Endpoints:
+- POST /auth/register
+- POST /auth/login
+- GET /auth/me
+
+Implementar:
+- bcrypt
+- JWT
+- guards
+- roles
+- DTOs
+- Swagger
+
+--------------------------------------------------
+
+BLOQUE 4 - AVAILABILITY
+
+Endpoints:
+- POST /availability
+- GET /availability/me
+- PATCH /availability/:id
+- DELETE /availability/:id
+- GET /availability/global
+
+Reglas:
+- solo modificar lo propio
+- no traslapes
+- validar horas
+
+--------------------------------------------------
+
+BLOQUE 5 - ACTIVITIES
+
+Endpoints:
+- POST /activities
+- GET /activities
+- GET /activities/:id
+- PATCH /activities/:id
+- PATCH /activities/:id/cancel
+- PATCH /activities/:id/confirm
+- GET /activities/dashboard/summary
+
+Reglas:
+- solo ADMIN gestiona
+- validar quorum
+- validar disponibilidad
+- evitar conflictos
+- usar transacciones
+
+--------------------------------------------------
+
+BLOQUE 6 - EXTRA
+
+- dashboard summary
+- health check real (DB)
+- logging básico
+- medición de tiempo de respuesta
+
+--------------------------------------------------
+
+BLOQUE 7 - REFACTOR FINAL
+
+- errores consistentes
+- arquitectura limpia
+- sin lógica en controllers
+- sin Prisma directo
+- nombres correctos
+- eliminar términos incorrectos
+
+--------------------------------------------------
+
+BLOQUE 8 - README
+
+Incluir:
+- descripción
+- arquitectura
+- stack
+- setup
+- endpoints
+- reglas de negocio
+
+==================================================
+NOTA FINAL
+==================================================
+
+NO agregar complejidad innecesaria.
+Mantener todo alineado con Monolito Modular.
