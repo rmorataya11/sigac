@@ -2,21 +2,35 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { store } from '@/lib/store';
-import { activitiesService } from '@/lib/services/activities';
+import {
+  activitiesService,
+  type ActivitiesDashboardSummary,
+} from '@/lib/services/activities';
 import { availabilityService } from '@/lib/services/availability';
 import { activityDateOnly, type Activity } from '@/lib/types';
 
+function statusLabel(key: string): string {
+  switch (key) {
+    case 'DRAFT':
+      return 'Borrador';
+    case 'CONFIRMED':
+      return 'Confirmada';
+    case 'CANCELLED':
+      return 'Cancelada';
+    case 'FINALIZADA':
+      return 'Finalizada';
+    default:
+      return key;
+  }
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
-  const users = store.getUsers();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [myAvailabilityCount, setMyAvailabilityCount] = useState(0);
-
-  const totalUsers = users.length;
-  const admins = users.filter((u) => u.role === 'ADMIN').length;
-  const colaboradores = users.filter((u) => u.role === 'COLABORADOR').length;
+  const [summary, setSummary] = useState<ActivitiesDashboardSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
 
   const isAdmin = user?.role === 'ADMIN';
 
@@ -36,6 +50,30 @@ export default function DashboardPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      setSummary(null);
+      setSummaryLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setSummaryLoading(true);
+    activitiesService
+      .getDashboardSummary()
+      .then((s) => {
+        if (!cancelled) setSummary(s);
+      })
+      .catch(() => {
+        if (!cancelled) setSummary(null);
+      })
+      .finally(() => {
+        if (!cancelled) setSummaryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!user || user.role === 'ADMIN') {
@@ -70,6 +108,10 @@ export default function DashboardPage() {
 
   const nextActivity = upcomingActivities[0];
 
+  const byStatusEntries = summary
+    ? Object.entries(summary.byStatus).filter(([, n]) => n > 0)
+    : [];
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <h1 className="text-2xl font-bold">Dashboard</h1>
@@ -78,18 +120,38 @@ export default function DashboardPage() {
         <>
           <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="glass-panel rounded-2xl p-4">
-              <p className="text-white/60 text-sm">Total usuarios</p>
-              <p className="text-2xl font-semibold">{totalUsers}</p>
+              <p className="text-white/60 text-sm">Total actividades</p>
+              <p className="text-2xl font-semibold">
+                {summaryLoading ? '…' : (summary?.total ?? '—')}
+              </p>
             </div>
             <div className="glass-panel rounded-2xl p-4">
-              <p className="text-white/60 text-sm">Administradores</p>
-              <p className="text-2xl font-semibold">{admins}</p>
+              <p className="text-white/60 text-sm">Próximas confirmadas</p>
+              <p className="text-2xl font-semibold">
+                {summaryLoading ? '…' : (summary?.upcomingConfirmed ?? '—')}
+              </p>
+              <p className="text-white/45 text-xs mt-1">Desde hoy (UTC), estado confirmada</p>
             </div>
             <div className="glass-panel rounded-2xl p-4">
-              <p className="text-white/60 text-sm">Colaboradores</p>
-              <p className="text-2xl font-semibold">{colaboradores}</p>
+              <p className="text-white/60 text-sm">En borrador</p>
+              <p className="text-2xl font-semibold">
+                {summaryLoading
+                  ? '…'
+                  : (summary?.byStatus?.DRAFT ?? '—')}
+              </p>
             </div>
           </section>
+          {!summaryLoading && summary && byStatusEntries.length > 0 && (
+            <p className="text-white/55 text-sm">
+              Por estado:{' '}
+              {byStatusEntries.map(([k, v], i) => (
+                <span key={k}>
+                  {i > 0 ? ' · ' : ''}
+                  {statusLabel(k)}: {v}
+                </span>
+              ))}
+            </p>
+          )}
           <section>
             <h2 className="text-lg font-semibold mb-3">Actividades registradas</h2>
             {activitiesLoading ? (

@@ -13,9 +13,20 @@ export type CreateActivityInput = {
   participantUserIds?: string[];
 };
 
+/** Respuesta de GET /activities/dashboard/summary (solo ADMIN). */
+export type ActivitiesDashboardSummary = {
+  total: number;
+  byStatus: Record<string, number>;
+  upcomingConfirmed: number;
+};
+
 export const activitiesService = {
   async list(): Promise<Activity[]> {
     return apiGet<Activity[]>('/activities');
+  },
+
+  async getDashboardSummary(): Promise<ActivitiesDashboardSummary> {
+    return apiGet<ActivitiesDashboardSummary>('/activities/dashboard/summary');
   },
 
   async create(input: CreateActivityInput): Promise<Activity> {
