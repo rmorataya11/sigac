@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ActivityStatus, Prisma, Role } from '@prisma/client';
+import { ActivityStatus, AuditAction, Prisma, Role } from '@prisma/client';
 import {
   intervalFullyContains,
   isValidTimeFormat,
@@ -20,12 +20,17 @@ import {
 import { CreateActivityDto } from './dto/create-activity.dto';
 import { UpdateActivityDto } from './dto/update-activity.dto';
 import type { PublicUser } from '../../common/types/public-user.type';
+import { AuditService } from '../audit/audit.service';
+import { snapshotActivity } from '../audit/activity-audit.util';
+import { PrismaService } from '../../database/prisma.service';
 
 @Injectable()
 export class ActivitiesService {
   constructor(
+    private readonly prisma: PrismaService,
     private readonly activitiesRepository: ActivitiesRepository,
     private readonly availabilityRepository: AvailabilityRepository,
+    private readonly auditService: AuditService,
   ) {}
 
   findAllForUser(user: PublicUser): Promise<ActivityWithParticipants[]> {
@@ -70,21 +75,34 @@ export class ActivitiesService {
         dto.endTime,
       );
     }
-    return this.activitiesRepository.create({
-      title: dto.title.trim(),
-      description: dto.description?.trim() ?? null,
-      activityDate,
-      startTime: dto.startTime,
-      endTime: dto.endTime,
-      minimumQuorum: dto.minimumQuorum,
-      status: ActivityStatus.DRAFT,
-      createdById: adminUserId,
-      participantUserIds,
+    return this.prisma.$transaction(async (tx) => {
+      const created = await this.activitiesRepository.createWithTx(tx, {
+        title: dto.title.trim(),
+        description: dto.description?.trim() ?? null,
+        activityDate,
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+        minimumQuorum: dto.minimumQuorum,
+        status: ActivityStatus.DRAFT,
+        createdById: adminUserId,
+        participantUserIds,
+      });
+      await this.auditService.record({
+        tx,
+        userId: adminUserId,
+        action: AuditAction.ACTIVITY_CREATED,
+        resourceType: 'Activity',
+        resourceId: created.id,
+        payloadBefore: null,
+        payloadAfter: snapshotActivity(created),
+      });
+      return created;
     });
   }
 
   async update(
     id: string,
+    actorUserId: string,
     dto: UpdateActivityDto,
   ): Promise<ActivityWithParticipants> {
     if (Object.keys(dto).length === 0) {
@@ -95,6 +113,7 @@ export class ActivitiesService {
       throw new NotFoundException('Actividad no encontrada');
     }
     this.assertActivityEditableAsProposal(activity);
+    const beforeSnapshot = snapshotActivity(activity);
 
     const mergedDate = dto.activityDate
       ? this.parseDate(dto.activityDate)
@@ -152,14 +171,28 @@ export class ActivitiesService {
     const replaceParticipants =
       dto.participantUserIds !== undefined ? participantUserIds : null;
 
-    return this.activitiesRepository.updateFieldsAndReplaceParticipants(
-      id,
-      data,
-      replaceParticipants,
-    );
+    return this.prisma.$transaction(async (tx) => {
+      const updated =
+        await this.activitiesRepository.updateFieldsAndReplaceParticipantsWithTx(
+          tx,
+          id,
+          data,
+          replaceParticipants,
+        );
+      await this.auditService.record({
+        tx,
+        userId: actorUserId,
+        action: AuditAction.ACTIVITY_UPDATED,
+        resourceType: 'Activity',
+        resourceId: id,
+        payloadBefore: beforeSnapshot,
+        payloadAfter: snapshotActivity(updated),
+      });
+      return updated;
+    });
   }
 
-  async confirm(id: string): Promise<ActivityWithParticipants> {
+  async confirm(id: string, actorUserId: string): Promise<ActivityWithParticipants> {
     const activity = await this.activitiesRepository.findById(id);
     if (!activity) {
       throw new NotFoundException('Actividad no encontrada');
@@ -188,15 +221,23 @@ export class ActivitiesService {
       activity.endTime,
       activity.id,
     );
-    await this.activitiesRepository.updateStatus(id, ActivityStatus.CONFIRMED);
-    const updated = await this.activitiesRepository.findById(id);
-    if (!updated) {
-      throw new NotFoundException('Actividad no encontrada');
-    }
-    return updated;
+    const beforeSnapshot = snapshotActivity(activity);
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await this.activitiesRepository.confirmWithTx(tx, id);
+      await this.auditService.record({
+        tx,
+        userId: actorUserId,
+        action: AuditAction.ACTIVITY_CONFIRMED,
+        resourceType: 'Activity',
+        resourceId: id,
+        payloadBefore: beforeSnapshot,
+        payloadAfter: snapshotActivity(updated),
+      });
+      return updated;
+    });
   }
 
-  async cancel(id: string): Promise<ActivityWithParticipants> {
+  async cancel(id: string, actorUserId: string): Promise<ActivityWithParticipants> {
     const activity = await this.activitiesRepository.findById(id);
     if (!activity) {
       throw new NotFoundException('Actividad no encontrada');
@@ -209,7 +250,21 @@ export class ActivitiesService {
         'No se puede cancelar una actividad finalizada',
       );
     }
-    return this.activitiesRepository.cancelAndClearParticipants(id);
+    const beforeSnapshot = snapshotActivity(activity);
+    return this.prisma.$transaction(async (tx) => {
+      const updated =
+        await this.activitiesRepository.cancelAndClearParticipantsWithTx(tx, id);
+      await this.auditService.record({
+        tx,
+        userId: actorUserId,
+        action: AuditAction.ACTIVITY_CANCELLED,
+        resourceType: 'Activity',
+        resourceId: id,
+        payloadBefore: beforeSnapshot,
+        payloadAfter: snapshotActivity(updated),
+      });
+      return updated;
+    });
   }
 
   getDashboardSummary() {

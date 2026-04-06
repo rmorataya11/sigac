@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { Activity, ActivityStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 
+type Tx = Prisma.TransactionClient;
+
 const userPublic = { id: true, fullName: true, email: true } as const;
 
 export type ActivityParticipantWithUser = {
@@ -82,6 +84,35 @@ export class ActivitiesRepository {
     });
   }
 
+  createWithTx(
+    tx: Tx,
+    data: {
+      title: string;
+      description?: string | null;
+      activityDate: Date;
+      startTime: string;
+      endTime: string;
+      minimumQuorum: number;
+      status?: ActivityStatus;
+      createdById: string;
+      participantUserIds: string[];
+    },
+  ): Promise<ActivityWithParticipants> {
+    const { participantUserIds, createdById, ...rest } = data;
+    return tx.activity.create({
+      data: {
+        ...rest,
+        createdBy: { connect: { id: createdById } },
+        participants: {
+          create: participantUserIds.map((userId) => ({ userId })),
+        },
+      },
+      include: {
+        participants: { include: { user: { select: userPublic } } },
+      },
+    });
+  }
+
   update(
     id: string,
     data: Prisma.ActivityUpdateInput,
@@ -106,15 +137,22 @@ export class ActivitiesRepository {
   cancelAndClearParticipants(
     id: string,
   ): Promise<ActivityWithParticipants> {
-    return this.prisma.$transaction(async (tx) => {
-      await tx.activityParticipant.deleteMany({ where: { activityId: id } });
-      return tx.activity.update({
-        where: { id },
-        data: { status: ActivityStatus.CANCELLED },
-        include: {
-          participants: { include: { user: { select: userPublic } } },
-        },
-      });
+    return this.prisma.$transaction(async (tx) =>
+      this.cancelAndClearParticipantsWithTx(tx, id),
+    );
+  }
+
+  async cancelAndClearParticipantsWithTx(
+    tx: Tx,
+    id: string,
+  ): Promise<ActivityWithParticipants> {
+    await tx.activityParticipant.deleteMany({ where: { activityId: id } });
+    return tx.activity.update({
+      where: { id },
+      data: { status: ActivityStatus.CANCELLED },
+      include: {
+        participants: { include: { user: { select: userPublic } } },
+      },
     });
   }
 
@@ -137,28 +175,57 @@ export class ActivitiesRepository {
     data: Prisma.ActivityUpdateInput,
     participantUserIds: string[] | null,
   ): Promise<ActivityWithParticipants> {
-    return this.prisma.$transaction(async (tx) => {
-      if (Object.keys(data).length > 0) {
-        await tx.activity.update({ where: { id }, data });
+    return this.prisma.$transaction(async (tx) =>
+      this.updateFieldsAndReplaceParticipantsWithTx(
+        tx,
+        id,
+        data,
+        participantUserIds,
+      ),
+    );
+  }
+
+  async updateFieldsAndReplaceParticipantsWithTx(
+    tx: Tx,
+    id: string,
+    data: Prisma.ActivityUpdateInput,
+    participantUserIds: string[] | null,
+  ): Promise<ActivityWithParticipants> {
+    if (Object.keys(data).length > 0) {
+      await tx.activity.update({ where: { id }, data });
+    }
+    if (participantUserIds !== null) {
+      await tx.activityParticipant.deleteMany({ where: { activityId: id } });
+      if (participantUserIds.length > 0) {
+        await tx.activityParticipant.createMany({
+          data: participantUserIds.map((userId) => ({
+            activityId: id,
+            userId,
+          })),
+        });
       }
-      if (participantUserIds !== null) {
-        await tx.activityParticipant.deleteMany({ where: { activityId: id } });
-        if (participantUserIds.length > 0) {
-          await tx.activityParticipant.createMany({
-            data: participantUserIds.map((userId) => ({
-              activityId: id,
-              userId,
-            })),
-          });
-        }
-      }
-      const full = await tx.activity.findUniqueOrThrow({
-        where: { id },
-        include: {
-          participants: { include: { user: { select: userPublic } } },
-        },
-      });
-      return full;
+    }
+    return tx.activity.findUniqueOrThrow({
+      where: { id },
+      include: {
+        participants: { include: { user: { select: userPublic } } },
+      },
+    });
+  }
+
+  async confirmWithTx(
+    tx: Tx,
+    id: string,
+  ): Promise<ActivityWithParticipants> {
+    await tx.activity.update({
+      where: { id },
+      data: { status: ActivityStatus.CONFIRMED },
+    });
+    return tx.activity.findUniqueOrThrow({
+      where: { id },
+      include: {
+        participants: { include: { user: { select: userPublic } } },
+      },
     });
   }
 

@@ -96,8 +96,11 @@ export class ActivitiesController {
   @ApiBadRequestResponse({
     description: 'Ya cancelada, finalizada u otro estado que impide cancelar',
   })
-  cancel(@Param('id') id: string) {
-    return this.activitiesService.cancel(id);
+  cancel(
+    @Param('id') id: string,
+    @AuthenticatedUser() user: PublicUser,
+  ) {
+    return this.activitiesService.cancel(id, user.id);
   }
 
   @Patch(':id/confirm')
@@ -112,8 +115,11 @@ export class ActivitiesController {
     description:
       'No está en DRAFT, quórum, disponibilidad o conflicto de agenda',
   })
-  confirm(@Param('id') id: string) {
-    return this.activitiesService.confirm(id);
+  confirm(
+    @Param('id') id: string,
+    @AuthenticatedUser() user: PublicUser,
+  ) {
+    return this.activitiesService.confirm(id, user.id);
   }
 
   @Patch(':id')
@@ -128,7 +134,11 @@ export class ActivitiesController {
     description:
       'Actividad no está en DRAFT (propuesta); edición no permitida por estado',
   })
-  update(@Param('id') id: string, @Body() dto: UpdateActivityDto) {
-    return this.activitiesService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @AuthenticatedUser() user: PublicUser,
+    @Body() dto: UpdateActivityDto,
+  ) {
+    return this.activitiesService.update(id, user.id, dto);
   }
 }

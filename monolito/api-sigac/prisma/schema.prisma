@@ -19,6 +19,13 @@ enum ActivityStatus {
   FINALIZADA
 }
 
+enum AuditAction {
+  ACTIVITY_CREATED
+  ACTIVITY_UPDATED
+  ACTIVITY_CONFIRMED
+  ACTIVITY_CANCELLED
+}
+
 model User {
   id           String   @id @default(cuid())
   fullName     String
@@ -31,6 +38,24 @@ model User {
   availabilities       Availability[]
   activitiesCreated    Activity[]            @relation("ActivityCreator")
   activityParticipants ActivityParticipant[]
+  auditLogs            AuditLog[]
+}
+
+model AuditLog {
+  id            String      @id @default(cuid())
+  userId        String
+  action        AuditAction
+  resourceType  String
+  resourceId    String
+  payloadBefore Json?
+  payloadAfter  Json?
+  createdAt     DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([resourceType, resourceId])
+  @@index([createdAt])
 }
 
 model Availability {
