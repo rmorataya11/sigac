@@ -23,6 +23,10 @@ import type { PublicUser } from '../../common/types/public-user.type';
 import { AuditService } from '../audit/audit.service';
 import { snapshotActivity } from '../audit/activity-audit.util';
 import { PrismaService } from '../../database/prisma.service';
+import {
+  MailService,
+  type ActivityMailPayload,
+} from '../mail/mail.service';
 
 @Injectable()
 export class ActivitiesService {
@@ -31,6 +35,7 @@ export class ActivitiesService {
     private readonly activitiesRepository: ActivitiesRepository,
     private readonly availabilityRepository: AvailabilityRepository,
     private readonly auditService: AuditService,
+    private readonly mailService: MailService,
   ) {}
 
   findAllForUser(user: PublicUser): Promise<ActivityWithParticipants[]> {
@@ -75,8 +80,8 @@ export class ActivitiesService {
         dto.endTime,
       );
     }
-    return this.prisma.$transaction(async (tx) => {
-      const created = await this.activitiesRepository.createWithTx(tx, {
+    const created = await this.prisma.$transaction(async (tx) => {
+      const row = await this.activitiesRepository.createWithTx(tx, {
         title: dto.title.trim(),
         description: dto.description?.trim() ?? null,
         activityDate,
@@ -92,12 +97,17 @@ export class ActivitiesService {
         userId: adminUserId,
         action: AuditAction.ACTIVITY_CREATED,
         resourceType: 'Activity',
-        resourceId: created.id,
+        resourceId: row.id,
         payloadBefore: null,
-        payloadAfter: snapshotActivity(created),
+        payloadAfter: snapshotActivity(row),
       });
-      return created;
+      return row;
     });
+    void this.mailService.notifyActivityParticipants(
+      'created',
+      this.activityMailPayload(created),
+    );
+    return created;
   }
 
   async update(
@@ -171,8 +181,8 @@ export class ActivitiesService {
     const replaceParticipants =
       dto.participantUserIds !== undefined ? participantUserIds : null;
 
-    return this.prisma.$transaction(async (tx) => {
-      const updated =
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row =
         await this.activitiesRepository.updateFieldsAndReplaceParticipantsWithTx(
           tx,
           id,
@@ -186,10 +196,15 @@ export class ActivitiesService {
         resourceType: 'Activity',
         resourceId: id,
         payloadBefore: beforeSnapshot,
-        payloadAfter: snapshotActivity(updated),
+        payloadAfter: snapshotActivity(row),
       });
-      return updated;
+      return row;
     });
+    void this.mailService.notifyActivityParticipants(
+      'updated',
+      this.activityMailPayload(updated),
+    );
+    return updated;
   }
 
   async confirm(id: string, actorUserId: string): Promise<ActivityWithParticipants> {
@@ -222,8 +237,8 @@ export class ActivitiesService {
       activity.id,
     );
     const beforeSnapshot = snapshotActivity(activity);
-    return this.prisma.$transaction(async (tx) => {
-      const updated = await this.activitiesRepository.confirmWithTx(tx, id);
+    const confirmed = await this.prisma.$transaction(async (tx) => {
+      const row = await this.activitiesRepository.confirmWithTx(tx, id);
       await this.auditService.record({
         tx,
         userId: actorUserId,
@@ -231,10 +246,15 @@ export class ActivitiesService {
         resourceType: 'Activity',
         resourceId: id,
         payloadBefore: beforeSnapshot,
-        payloadAfter: snapshotActivity(updated),
+        payloadAfter: snapshotActivity(row),
       });
-      return updated;
+      return row;
     });
+    void this.mailService.notifyActivityParticipants(
+      'confirmed',
+      this.activityMailPayload(confirmed),
+    );
+    return confirmed;
   }
 
   async cancel(id: string, actorUserId: string): Promise<ActivityWithParticipants> {
@@ -251,8 +271,10 @@ export class ActivitiesService {
       );
     }
     const beforeSnapshot = snapshotActivity(activity);
-    return this.prisma.$transaction(async (tx) => {
-      const updated =
+    /** Antes del borrado de participantes (F.A.03) guardamos destinatarios para el correo. */
+    const mailPayload = this.activityMailPayload(activity);
+    const cancelled = await this.prisma.$transaction(async (tx) => {
+      const row =
         await this.activitiesRepository.cancelAndClearParticipantsWithTx(tx, id);
       await this.auditService.record({
         tx,
@@ -261,14 +283,30 @@ export class ActivitiesService {
         resourceType: 'Activity',
         resourceId: id,
         payloadBefore: beforeSnapshot,
-        payloadAfter: snapshotActivity(updated),
+        payloadAfter: snapshotActivity(row),
       });
-      return updated;
+      return row;
     });
+    void this.mailService.notifyActivityParticipants('cancelled', mailPayload);
+    return cancelled;
   }
 
   getDashboardSummary() {
     return this.activitiesRepository.getDashboardSummary();
+  }
+
+  private activityMailPayload(
+    a: ActivityWithParticipants,
+  ): ActivityMailPayload {
+    return {
+      title: a.title,
+      activityDateLabel: a.activityDate.toISOString().slice(0, 10),
+      startTime: a.startTime,
+      endTime: a.endTime,
+      participantEmails: [
+        ...new Set(a.participants.map((p) => p.user.email)),
+      ],
+    };
   }
 
   /**

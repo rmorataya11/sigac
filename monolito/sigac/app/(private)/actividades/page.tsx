@@ -3,9 +3,48 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { activitiesService } from '@/lib/services/activities';
-import { activityDateOnly, type Activity, type ActivityStatusApi } from '@/lib/types';
+import { availabilityService } from '@/lib/services/availability';
+import {
+  activityDateOnly,
+  type Activity,
+  type ActivityStatusApi,
+  type Availability,
+} from '@/lib/types';
 import PageHeader from '@/components/PageHeader';
 import { activityStatusBadgeClass } from '@/lib/ui/activity-status-badge';
+
+function uniqueUsersFromAvailability(rows: Availability[]): {
+  id: string;
+  fullName: string;
+  email: string;
+}[] {
+  const map = new Map<string, { id: string; fullName: string; email: string }>();
+  for (const row of rows) {
+    const id = row.user?.id ?? row.userId;
+    const fullName = row.user?.fullName?.trim() || 'Usuario';
+    const email = row.user?.email ?? '';
+    if (!map.has(id)) {
+      map.set(id, { id, fullName, email });
+    }
+  }
+  return [...map.values()].sort((a, b) =>
+    a.fullName.localeCompare(b.fullName, 'es'),
+  );
+}
+
+function appendParticipantId(current: string, id: string): string {
+  const set = new Set(
+    current
+      .split(/[,;\s]+/)
+      .map((x) => x.trim())
+      .filter(Boolean),
+  );
+  if (set.has(id)) {
+    return current;
+  }
+  set.add(id);
+  return [...set].join(', ');
+}
 
 function statusLabel(s: ActivityStatusApi): string {
   switch (s) {
@@ -37,6 +76,11 @@ export default function ActividadesPage() {
   const [participantIds, setParticipantIds] = useState('');
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [teamUsers, setTeamUsers] = useState<
+    { id: string; fullName: string; email: string }[]
+  >([]);
+  const [teamListError, setTeamListError] = useState('');
+  const [pickListKey, setPickListKey] = useState(0);
 
   const isAdmin = user?.role === 'ADMIN';
 
@@ -55,6 +99,32 @@ export default function ActividadesPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      setTeamUsers([]);
+      setTeamListError('');
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const rows = await availabilityService.listGlobal();
+        if (cancelled) {
+          return;
+        }
+        setTeamUsers(uniqueUsersFromAvailability(rows));
+        setTeamListError('');
+      } catch {
+        if (!cancelled) {
+          setTeamListError('No se pudo cargar la lista de personas con disponibilidad.');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin]);
 
   const refresh = () => load();
 
@@ -228,11 +298,59 @@ export default function ActividadesPage() {
           </div>
           <div>
             <label className="mb-1.5 block text-xs font-medium text-zinc-500">
-              IDs de participantes (opcional, separados por coma)
+              Participantes (opcional)
             </label>
+            <p className="mb-2 text-xs text-zinc-600">
+              Pueden ser administradores o colaboradores: quienes aparezcan aquí deben tener
+              disponibilidad que cubra el horario de la actividad. No hace falta abrir la base de
+              datos: usa tu usuario o el listado.
+            </p>
+            <div className="mb-2 flex flex-wrap gap-2">
+              {user ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setParticipantIds((prev) => appendParticipantId(prev, user.id))
+                  }
+                  className="rounded-lg border border-zinc-600/60 bg-zinc-800/50 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-800"
+                >
+                  Añadir mi usuario
+                </button>
+              ) : null}
+            </div>
+            {teamListError ? (
+              <p className="mb-2 text-xs text-amber-400/90">{teamListError}</p>
+            ) : null}
+            {teamUsers.length > 0 ? (
+              <div className="mb-2">
+                <label className="mb-1 block text-xs text-zinc-500">
+                  Añadir quien ya registró disponibilidad
+                </label>
+                <select
+                  key={pickListKey}
+                  defaultValue=""
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (!v) {
+                      return;
+                    }
+                    setParticipantIds((prev) => appendParticipantId(prev, v));
+                    setPickListKey((k) => k + 1);
+                  }}
+                  className="glass-input h-11 w-full max-w-md rounded-xl px-4 text-sm"
+                >
+                  <option value="">Elegir nombre…</option>
+                  {teamUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.fullName} ({u.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             <input
               type="text"
-              placeholder="id1, id2"
+              placeholder="O pega IDs separados por coma (id1, id2)"
               value={participantIds}
               onChange={(e) => setParticipantIds(e.target.value)}
               className="glass-input h-11 w-full rounded-xl px-4 text-sm"
