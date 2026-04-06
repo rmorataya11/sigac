@@ -13,6 +13,18 @@ export type CreateActivityInput = {
   participantUserIds?: string[];
 };
 
+/** PATCH /activities/:id (solo DRAFT). */
+export type UpdateActivityInput = {
+  title: string;
+  description?: string;
+  activityDate: string;
+  startTime: string;
+  endTime: string;
+  minimumQuorum: number;
+  /** Reemplaza la lista de participantes. */
+  participantUserIds: string[];
+};
+
 /** Respuesta de GET /activities/dashboard/summary (solo ADMIN). */
 export type ActivitiesDashboardSummary = {
   total: number;
@@ -42,6 +54,22 @@ export const activitiesService = {
           ? input.participantUserIds
           : undefined,
     });
+  },
+
+  async update(id: string, input: UpdateActivityInput): Promise<Activity> {
+    return apiPatch<Activity>(`/activities/${id}`, {
+      title: input.title.trim(),
+      description: input.description?.trim() || undefined,
+      activityDate: input.activityDate,
+      startTime: input.startTime,
+      endTime: input.endTime,
+      minimumQuorum: input.minimumQuorum,
+      participantUserIds: input.participantUserIds,
+    });
+  },
+
+  async confirm(id: string): Promise<Activity> {
+    return apiPatch<Activity>(`/activities/${id}/confirm`, {});
   },
 
   async cancel(id: string): Promise<Activity> {

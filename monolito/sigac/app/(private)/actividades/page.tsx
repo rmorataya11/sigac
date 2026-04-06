@@ -81,6 +81,8 @@ export default function ActividadesPage() {
   >([]);
   const [teamListError, setTeamListError] = useState('');
   const [pickListKey, setPickListKey] = useState(0);
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
 
   const isAdmin = user?.role === 'ADMIN';
 
@@ -128,13 +130,37 @@ export default function ActividadesPage() {
 
   const refresh = () => load();
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const clearEdit = useCallback(() => {
+    setEditingActivityId(null);
+    setTitle('');
+    setDescription('');
+    setDate('');
+    setStartTime('09:00');
+    setEndTime('10:00');
+    setMinimumQuorum(1);
+    setParticipantIds('');
+    setFormError('');
+  }, []);
+
+  const beginEdit = useCallback((a: Activity) => {
+    setEditingActivityId(a.id);
+    setTitle(a.title);
+    setDescription(a.description ?? '');
+    setDate(activityDateOnly(a));
+    setStartTime(a.startTime);
+    setEndTime(a.endTime);
+    setMinimumQuorum(a.minimumQuorum);
+    setParticipantIds((a.participants ?? []).map((p) => p.userId).join(', '));
+    setFormError('');
+  }, []);
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
     const t = title.trim();
     const d = description.trim();
     if (!t || !date) {
-      setFormError('Título y fecha son obligatorios.');
+      setFormError('Indica título y fecha.');
       return;
     }
     if (!startTime || !endTime) {
@@ -152,39 +178,86 @@ export default function ActividadesPage() {
 
     setSubmitting(true);
     try {
-      await activitiesService.create({
-        title: t,
-        description: d || undefined,
-        activityDate: date,
-        startTime,
-        endTime,
-        minimumQuorum: Math.floor(minimumQuorum),
-        participantUserIds: ids.length ? ids : undefined,
-      });
-      setTitle('');
-      setDescription('');
-      setDate('');
-      setStartTime('09:00');
-      setEndTime('10:00');
-      setMinimumQuorum(1);
-      setParticipantIds('');
-      setFormError('');
+      if (editingActivityId) {
+        await activitiesService.update(editingActivityId, {
+          title: t,
+          description: d || undefined,
+          activityDate: date,
+          startTime,
+          endTime,
+          minimumQuorum: Math.floor(minimumQuorum),
+          participantUserIds: ids,
+        });
+        clearEdit();
+      } else {
+        await activitiesService.create({
+          title: t,
+          description: d || undefined,
+          activityDate: date,
+          startTime,
+          endTime,
+          minimumQuorum: Math.floor(minimumQuorum),
+          participantUserIds: ids.length ? ids : undefined,
+        });
+        setTitle('');
+        setDescription('');
+        setDate('');
+        setStartTime('09:00');
+        setEndTime('10:00');
+        setMinimumQuorum(1);
+        setParticipantIds('');
+        setFormError('');
+      }
       await refresh();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'No se pudo crear.');
+      setFormError(
+        err instanceof Error
+          ? err.message
+          : editingActivityId
+            ? 'No se pudo guardar.'
+            : 'No se pudo crear.',
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleCancel = async (id: string) => {
+  const handleConfirmActivity = async (id: string) => {
+    if (!window.confirm('¿Confirmar esta actividad? Pasará de borrador a confirmada.')) {
+      return;
+    }
+    setListError('');
+    setActingId(id);
+    try {
+      await activitiesService.confirm(id);
+      await refresh();
+    } catch (err) {
+      setListError(err instanceof Error ? err.message : 'No se pudo confirmar.');
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  const handleCancelActivity = async (id: string) => {
+    if (!window.confirm('¿Cancelar esta actividad?')) {
+      return;
+    }
+    setListError('');
+    setActingId(id);
     try {
       await activitiesService.cancel(id);
+      if (editingActivityId === id) {
+        clearEdit();
+      }
       await refresh();
     } catch (err) {
       setListError(err instanceof Error ? err.message : 'No se pudo cancelar.');
+    } finally {
+      setActingId(null);
     }
   };
+
+  const actionsLocked = actingId !== null || submitting;
 
   const sorted = useMemo(
     () =>
@@ -209,16 +282,30 @@ export default function ActividadesPage() {
 
       {isAdmin ? (
         <form
-          onSubmit={handleCreate}
+          onSubmit={handleFormSubmit}
           className="glass-panel mb-10 space-y-5 rounded-2xl p-6 sm:p-7"
         >
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
-              Nueva actividad
-            </h2>
-            <p className="mt-1 text-xs text-zinc-600">
-              Se crea en borrador hasta confirmarla.
-            </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
+                {editingActivityId ? 'Editar actividad' : 'Nueva actividad'}
+              </h2>
+              <p className="mt-1 text-xs text-zinc-600">
+                {editingActivityId
+                  ? 'Los cambios solo se guardan mientras siga en borrador.'
+                  : 'Se crea en borrador hasta confirmarla.'}
+              </p>
+            </div>
+            {editingActivityId ? (
+              <button
+                type="button"
+                onClick={clearEdit}
+                disabled={submitting}
+                className="rounded-lg border border-zinc-600/60 px-3 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-500 hover:bg-zinc-800/50 disabled:opacity-50"
+              >
+                Cancelar edición
+              </button>
+            ) : null}
           </div>
           {formError ? (
             <div className="ui-alert-error" role="alert">
@@ -361,7 +448,13 @@ export default function ActividadesPage() {
             disabled={submitting}
             className="glass-button glass-button-primary h-11 rounded-xl px-6 text-sm font-medium disabled:opacity-50"
           >
-            {submitting ? 'Creando…' : 'Crear actividad'}
+            {submitting
+              ? editingActivityId
+                ? 'Guardando…'
+                : 'Creando…'
+              : editingActivityId
+                ? 'Guardar cambios'
+                : 'Crear actividad'}
           </button>
         </form>
       ) : null}
@@ -384,6 +477,8 @@ export default function ActividadesPage() {
               sorted.map((a) => {
                 const canCancel =
                   isAdmin && (a.status === 'DRAFT' || a.status === 'CONFIRMED');
+                const canDraftActions = isAdmin && a.status === 'DRAFT';
+                const rowBusy = actingId === a.id;
                 return (
                   <li
                     key={a.id}
@@ -411,14 +506,39 @@ export default function ActividadesPage() {
                         </p>
                       ) : null}
                     </div>
-                    {canCancel ? (
-                      <button
-                        type="button"
-                        onClick={() => handleCancel(a.id)}
-                        className="shrink-0 self-start rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-300 transition-all duration-200 hover:border-red-500/40 hover:bg-red-500/20 active:scale-[0.98]"
-                      >
-                        Cancelar
-                      </button>
+                    {isAdmin ? (
+                      <div className="flex flex-wrap gap-2 sm:justify-end">
+                        {canDraftActions ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={actionsLocked}
+                              onClick={() => beginEdit(a)}
+                              className="shrink-0 rounded-lg border border-zinc-600/60 bg-zinc-800/40 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-all duration-200 hover:border-violet-500/40 hover:bg-zinc-800 disabled:opacity-50"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              disabled={actionsLocked}
+                              onClick={() => void handleConfirmActivity(a.id)}
+                              className="shrink-0 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 transition-all duration-200 hover:border-emerald-500/50 hover:bg-emerald-500/15 disabled:opacity-50"
+                            >
+                              {rowBusy ? '…' : 'Confirmar'}
+                            </button>
+                          </>
+                        ) : null}
+                        {canCancel ? (
+                          <button
+                            type="button"
+                            disabled={actionsLocked}
+                            onClick={() => void handleCancelActivity(a.id)}
+                            className="shrink-0 rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-300 transition-all duration-200 hover:border-red-500/40 hover:bg-red-500/20 disabled:opacity-50"
+                          >
+                            {rowBusy ? '…' : 'Cancelar actividad'}
+                          </button>
+                        ) : null}
+                      </div>
                     ) : null}
                   </li>
                 );
