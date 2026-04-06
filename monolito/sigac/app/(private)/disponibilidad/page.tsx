@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { availabilityService } from '@/lib/services/availability';
 import type { Availability } from '@/lib/types';
 import { availabilityDateOnly } from '@/lib/types';
+import PageHeader from '@/components/PageHeader';
 
 export default function DisponibilidadPage() {
   const { user } = useAuth();
@@ -82,110 +83,142 @@ export default function DisponibilidadPage() {
         if (d !== 0) return d;
         return a.startTime.localeCompare(b.startTime);
       }),
-    [availability]
+    [availability],
   );
 
   const displayName = (a: Availability) =>
     a.user?.fullName ?? (a.userId === user?.id ? user.name : a.userId);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">Disponibilidad</h1>
+    <div>
+      <PageHeader
+        title="Disponibilidad"
+        description={
+          isAdmin
+            ? 'Vista global de franjas registradas por el equipo.'
+            : 'Registra cuándo puedes participar; evitamos solapes en el mismo día.'
+        }
+      />
 
-      {listError && (
-        <p className="text-sm text-red-300">{listError}</p>
-      )}
+      {listError ? (
+        <div className="ui-alert-error mb-6" role="alert">
+          {listError}
+        </div>
+      ) : null}
 
-      {!isAdmin && user && (
-        <form onSubmit={handleRegister} className="glass-panel rounded-2xl p-6 space-y-4">
-          <h2 className="font-semibold">Registrar disponibilidad</h2>
-          <p className="text-white/55 text-xs">
-            Indica en qué franja horaria estás disponible ese día. No puede solaparse con otro registro tuyo el mismo día.
-          </p>
-          {formError && (
-            <p className="text-sm text-red-300">{formError}</p>
-          )}
-          <div className="flex flex-wrap gap-3 items-end">
+      {!isAdmin && user ? (
+        <form
+          onSubmit={handleRegister}
+          className="glass-panel mb-10 space-y-5 rounded-2xl p-6 sm:p-7"
+        >
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
+              Registrar franja
+            </h2>
+            <p className="mt-1 text-xs text-zinc-600">
+              No puede solaparse con otro registro tuyo el mismo día.
+            </p>
+          </div>
+          {formError ? (
+            <div className="ui-alert-error" role="alert">
+              {formError}
+            </div>
+          ) : null}
+          <div className="flex flex-wrap gap-4">
             <div>
-              <label className="block text-white/60 text-xs mb-1">Fecha</label>
+              <label className="mb-1.5 block text-xs font-medium text-zinc-500">
+                Fecha
+              </label>
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="glass-input rounded-xl px-4 h-11 text-white text-sm"
+                className="glass-input h-11 rounded-xl px-4 text-sm"
               />
             </div>
             <div>
-              <label className="block text-white/60 text-xs mb-1">Inicio</label>
+              <label className="mb-1.5 block text-xs font-medium text-zinc-500">
+                Inicio
+              </label>
               <input
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="glass-input rounded-xl px-4 h-11 text-white text-sm"
+                className="glass-input h-11 rounded-xl px-4 text-sm"
               />
             </div>
             <div>
-              <label className="block text-white/60 text-xs mb-1">Fin</label>
+              <label className="mb-1.5 block text-xs font-medium text-zinc-500">
+                Fin
+              </label>
               <input
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="glass-input rounded-xl px-4 h-11 text-white text-sm"
+                className="glass-input h-11 rounded-xl px-4 text-sm"
               />
             </div>
           </div>
           <button
             type="submit"
             disabled={submitting}
-            className="glass-button px-6 py-2.5 rounded-xl font-medium text-white hover:opacity-95 disabled:opacity-50"
+            className="glass-button glass-button-primary h-11 rounded-xl px-6 text-sm font-medium disabled:opacity-50"
           >
             {submitting ? 'Guardando…' : 'Guardar'}
           </button>
         </form>
-      )}
+      ) : null}
 
       <section>
-        <h2 className="text-lg font-semibold mb-3">
-          {isAdmin ? 'Disponibilidad de todos' : 'Mi disponibilidad'}
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-500">
+          {isAdmin ? 'Todos los colaboradores' : 'Tus franjas'}
         </h2>
         {loading ? (
-          <p className="text-white/50">Cargando…</p>
+          <div className="space-y-3">
+            <div className="ui-skeleton h-16 rounded-xl" />
+            <div className="ui-skeleton h-16 rounded-xl" />
+            <div className="ui-skeleton h-16 rounded-xl" />
+          </div>
         ) : (
-        <ul className="space-y-2">
-          {sorted.length === 0 ? (
-            <li className="text-white/50">No hay registros.</li>
-          ) : (
-            sorted.map((a) => {
-              const canDelete = user && a.userId === user.id;
-              return (
-              <li
-                key={a.id}
-                className="glass-panel rounded-xl px-4 py-3 flex justify-between items-center gap-4"
-              >
-                <div>
-                  {isAdmin && (
-                    <span className="font-medium">{displayName(a)}</span>
-                  )}
-                  {isAdmin && <span className="text-white/50 text-sm ml-2"> · </span>}
-                  <span className="text-white/80">{availabilityDateOnly(a)}</span>
-                  <span className="text-white/50 text-sm ml-2">
-                    {a.startTime} – {a.endTime}
-                  </span>
-                </div>
-                {canDelete && (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(a.id)}
-                    className="shrink-0 px-3 py-1.5 rounded-lg text-sm text-red-300 hover:bg-red-500/20 transition-colors"
+          <ul className="space-y-3">
+            {sorted.length === 0 ? (
+              <li className="text-sm text-zinc-500">No hay registros.</li>
+            ) : (
+              sorted.map((a) => {
+                const canDelete = user && a.userId === user.id;
+                return (
+                  <li
+                    key={a.id}
+                    className="glass-panel glass-panel-interactive flex flex-col gap-2 rounded-xl px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
                   >
-                    Eliminar
-                  </button>
-                )}
-              </li>
-            );
-            })
-          )}
-        </ul>
+                    <div>
+                      {isAdmin ? (
+                        <span className="font-medium text-zinc-200">
+                          {displayName(a)}
+                        </span>
+                      ) : null}
+                      {isAdmin ? (
+                        <span className="text-zinc-600"> · </span>
+                      ) : null}
+                      <span className="text-zinc-300">{availabilityDateOnly(a)}</span>
+                      <span className="ml-2 text-sm text-zinc-500">
+                        {a.startTime} – {a.endTime}
+                      </span>
+                    </div>
+                    {canDelete ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(a.id)}
+                        className="shrink-0 self-start rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-300 transition-all duration-200 hover:border-red-500/40 hover:bg-red-500/20 active:scale-[0.98] sm:self-center"
+                      >
+                        Eliminar
+                      </button>
+                    ) : null}
+                  </li>
+                );
+              })
+            )}
+          </ul>
         )}
       </section>
     </div>

@@ -4,6 +4,12 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
+const navItems = [
+  { href: '/dashboard', label: 'Panel' },
+  { href: '/actividades', label: 'Actividades' },
+  { href: '/disponibilidad', label: 'Disponibilidad' },
+] as const;
+
 export default function PrivateNav() {
   const pathname = usePathname();
   const router = useRouter();
@@ -14,41 +20,67 @@ export default function PrivateNav() {
     router.replace('/');
   };
 
-  const link = (href: string, label: string) => {
-    const active = pathname === href || pathname.startsWith(href + '/');
-    return (
-      <Link
-        href={href}
-        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-          active ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'
-        }`}
-      >
-        {label}
-      </Link>
-    );
-  };
-
   return (
-    <header className="border-b border-white/10 bg-black/30 backdrop-blur-sm">
-      <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-        <nav className="flex items-center gap-2">
-          {link('/dashboard', 'Dashboard')}
-          {link('/actividades', 'Actividades')}
-          {link('/disponibilidad', 'Disponibilidad')}
-        </nav>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-white/60">
-            {user?.name} <span className="text-white/40">({user?.role})</span>
-          </span>
+    <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-zinc-950/75 backdrop-blur-xl backdrop-saturate-150 transition-[background,backdrop-filter] duration-300">
+      <div className="mx-auto flex h-14 max-w-4xl items-center justify-between gap-4 px-4 sm:px-6">
+        <div className="flex items-center gap-8">
+          <Link
+            href="/dashboard"
+            className="brand-mark text-sm font-semibold tracking-tight transition-opacity duration-200 hover:opacity-90"
+          >
+            SIGAC
+          </Link>
+          <nav className="hidden items-center gap-1 sm:flex" aria-label="Principal">
+            {navItems.map(({ href, label }) => {
+              const active =
+                pathname === href || pathname.startsWith(`${href}/`);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`nav-link ${active ? 'nav-link-active' : ''}`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="hidden min-w-0 text-right sm:block">
+            <p className="truncate text-sm font-medium text-zinc-100">
+              {user?.name}
+            </p>
+            <p className="text-[0.6875rem] uppercase tracking-wider text-zinc-500">
+              {user?.role === 'ADMIN' ? 'Administrador' : 'Colaborador'}
+            </p>
+          </div>
           <button
             type="button"
             onClick={handleLogout}
-            className="px-3 py-1.5 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+            className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-zinc-300 transition-all duration-200 hover:border-white/[0.12] hover:bg-white/[0.08] hover:text-white active:scale-[0.98]"
           >
-            Cerrar sesión
+            Salir
           </button>
         </div>
       </div>
+      <nav
+        className="flex gap-1 border-t border-white/[0.04] px-4 py-2 sm:hidden"
+        aria-label="Principal móvil"
+      >
+        {navItems.map(({ href, label }) => {
+          const active = pathname === href || pathname.startsWith(`${href}/`);
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`nav-link flex-1 text-center text-xs ${active ? 'nav-link-active' : ''}`}
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
     </header>
   );
 }

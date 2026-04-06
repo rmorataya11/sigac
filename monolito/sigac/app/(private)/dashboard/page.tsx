@@ -8,6 +8,8 @@ import {
 } from '@/lib/services/activities';
 import { availabilityService } from '@/lib/services/availability';
 import { activityDateOnly, type Activity } from '@/lib/types';
+import PageHeader from '@/components/PageHeader';
+import { activityStatusBadgeClass } from '@/lib/ui/activity-status-badge';
 
 function statusLabel(key: string): string {
   switch (key) {
@@ -29,7 +31,9 @@ export default function DashboardPage() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [myAvailabilityCount, setMyAvailabilityCount] = useState(0);
-  const [summary, setSummary] = useState<ActivitiesDashboardSummary | null>(null);
+  const [summary, setSummary] = useState<ActivitiesDashboardSummary | null>(
+    null,
+  );
   const [summaryLoading, setSummaryLoading] = useState(true);
 
   const isAdmin = user?.role === 'ADMIN';
@@ -113,36 +117,62 @@ export default function DashboardPage() {
     : [];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
+    <div>
+      <PageHeader
+        title="Panel"
+        description={
+          isAdmin
+            ? 'Resumen de actividades y estado del sistema.'
+            : 'Tu próxima agenda y disponibilidad registrada.'
+        }
+      />
 
       {isAdmin ? (
         <>
-          <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="glass-panel rounded-2xl p-4">
-              <p className="text-white/60 text-sm">Total actividades</p>
-              <p className="text-2xl font-semibold">
-                {summaryLoading ? '…' : (summary?.total ?? '—')}
-              </p>
-            </div>
-            <div className="glass-panel rounded-2xl p-4">
-              <p className="text-white/60 text-sm">Próximas confirmadas</p>
-              <p className="text-2xl font-semibold">
-                {summaryLoading ? '…' : (summary?.upcomingConfirmed ?? '—')}
-              </p>
-              <p className="text-white/45 text-xs mt-1">Desde hoy (UTC), estado confirmada</p>
-            </div>
-            <div className="glass-panel rounded-2xl p-4">
-              <p className="text-white/60 text-sm">En borrador</p>
-              <p className="text-2xl font-semibold">
-                {summaryLoading
-                  ? '…'
-                  : (summary?.byStatus?.DRAFT ?? '—')}
-              </p>
-            </div>
+          <section className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {summaryLoading ? (
+              <>
+                <div className="ui-skeleton h-24 rounded-2xl" />
+                <div className="ui-skeleton h-24 rounded-2xl" />
+                <div className="ui-skeleton h-24 rounded-2xl" />
+              </>
+            ) : (
+              <>
+                <div className="glass-panel rounded-2xl p-5 transition-transform duration-300 hover:-translate-y-0.5">
+                  <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+                    Total
+                  </p>
+                  <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight">
+                    {summary?.total ?? '—'}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-500">Actividades</p>
+                </div>
+                <div className="glass-panel rounded-2xl p-5 transition-transform duration-300 hover:-translate-y-0.5">
+                  <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+                    Próximas confirmadas
+                  </p>
+                  <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-emerald-300/95">
+                    {summary?.upcomingConfirmed ?? '—'}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Desde hoy (UTC)
+                  </p>
+                </div>
+                <div className="glass-panel rounded-2xl p-5 transition-transform duration-300 hover:-translate-y-0.5">
+                  <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+                    En borrador
+                  </p>
+                  <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight">
+                    {summary?.byStatus?.DRAFT ?? '—'}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-500">Pendientes</p>
+                </div>
+              </>
+            )}
           </section>
-          {!summaryLoading && summary && byStatusEntries.length > 0 && (
-            <p className="text-white/55 text-sm">
+
+          {!summaryLoading && summary && byStatusEntries.length > 0 ? (
+            <p className="mb-6 text-sm text-zinc-500">
               Por estado:{' '}
               {byStatusEntries.map(([k, v], i) => (
                 <span key={k}>
@@ -151,64 +181,104 @@ export default function DashboardPage() {
                 </span>
               ))}
             </p>
-          )}
+          ) : null}
+
           <section>
-            <h2 className="text-lg font-semibold mb-3">Actividades registradas</h2>
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-500">
+              Actividades registradas
+            </h2>
             {activitiesLoading ? (
-              <p className="text-white/50">Cargando actividades…</p>
+              <div className="space-y-3">
+                <div className="ui-skeleton h-16 rounded-xl" />
+                <div className="ui-skeleton h-16 rounded-xl" />
+                <div className="ui-skeleton h-16 rounded-xl" />
+              </div>
+            ) : activities.length === 0 ? (
+              <p className="text-sm text-zinc-500">No hay actividades aún.</p>
             ) : (
-            <ul className="space-y-2">
-              {activities.length === 0 ? (
-                <li className="text-white/50">No hay actividades.</li>
-              ) : (
-                activities.map((a) => (
-                  <li key={a.id} className="glass-panel rounded-xl px-4 py-3 flex justify-between items-center gap-4">
-                    <div>
-                      <span className="font-medium">{a.title}</span>
-                      <span className="text-white/50 text-sm ml-2">
-                        {activityDateOnly(a)} · {a.startTime}–{a.endTime}
+              <ul className="space-y-3">
+                {activities.map((a) => (
+                  <li
+                    key={a.id}
+                    className="glass-panel glass-panel-interactive rounded-xl px-5 py-4"
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="font-medium text-zinc-100">{a.title}</span>
+                      <span className={activityStatusBadgeClass(a.status)}>
+                        {statusLabel(a.status)}
                       </span>
                     </div>
-                    <p className="text-white/70 text-sm truncate max-w-xs">{a.description ?? '—'}</p>
+                    <p className="mt-1 text-sm text-zinc-500">
+                      {activityDateOnly(a)} · {a.startTime}–{a.endTime}
+                    </p>
+                    {a.description ? (
+                      <p className="mt-2 line-clamp-2 text-sm text-zinc-400">
+                        {a.description}
+                      </p>
+                    ) : null}
                   </li>
-                ))
-              )}
-            </ul>
+                ))}
+              </ul>
             )}
           </section>
         </>
       ) : (
         <>
-          <section>
-            <h2 className="text-lg font-semibold mb-3">Próximas actividades</h2>
+          <section className="mb-10">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-500">
+              Próximas actividades
+            </h2>
             {activitiesLoading ? (
-              <p className="text-white/50">Cargando…</p>
+              <div className="space-y-3">
+                <div className="ui-skeleton h-20 rounded-xl" />
+                <div className="ui-skeleton h-20 rounded-xl" />
+              </div>
+            ) : upcomingActivities.length === 0 ? (
+              <p className="text-sm text-zinc-500">
+                No hay actividades próximas en el calendario.
+              </p>
             ) : (
-            <ul className="space-y-2">
-              {upcomingActivities.length === 0 ? (
-                <li className="text-white/50">No hay próximas actividades.</li>
-              ) : (
-                upcomingActivities.map((a) => (
-                  <li key={a.id} className="glass-panel rounded-xl px-4 py-3">
-                    <span className="font-medium">{a.title}</span>
-                    <span className="text-white/50 text-sm ml-2">
+              <ul className="space-y-3">
+                {upcomingActivities.map((a) => (
+                  <li
+                    key={a.id}
+                    className="glass-panel glass-panel-interactive rounded-xl px-5 py-4"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-zinc-100">{a.title}</span>
+                      <span className={activityStatusBadgeClass(a.status)}>
+                        {statusLabel(a.status)}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-zinc-500">
                       {activityDateOnly(a)} · {a.startTime}–{a.endTime}
-                    </span>
-                    <p className="text-white/70 text-sm mt-1">{a.description ?? '—'}</p>
+                    </p>
+                    {a.description ? (
+                      <p className="mt-2 text-sm text-zinc-400">{a.description}</p>
+                    ) : null}
                   </li>
-                ))
-              )}
-            </ul>
+                ))}
+              </ul>
             )}
           </section>
-          <section className="glass-panel rounded-2xl p-4">
-            <h2 className="text-lg font-semibold mb-2">Estado personal</h2>
-            <p className="text-white/70 text-sm">Registros de disponibilidad: {myAvailabilityCount}</p>
-            {nextActivity && (
-              <p className="text-white/70 text-sm mt-1">
-                Próxima actividad: <strong>{nextActivity.title}</strong> ({activityDateOnly(nextActivity)})
+
+          <section className="glass-panel rounded-2xl p-6">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
+              Tu resumen
+            </h2>
+            <p className="mt-3 text-sm text-zinc-400">
+              Franjas de disponibilidad registradas:{' '}
+              <span className="font-medium text-zinc-200">{myAvailabilityCount}</span>
+            </p>
+            {nextActivity ? (
+              <p className="mt-3 text-sm text-zinc-400">
+                Siguiente en agenda:{' '}
+                <span className="font-medium text-cyan-300/95">{nextActivity.title}</span>{' '}
+                <span className="text-zinc-500">
+                  ({activityDateOnly(nextActivity)})
+                </span>
               </p>
-            )}
+            ) : null}
           </section>
         </>
       )}

@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import LoadingScreen from '@/components/LoadingScreen';
 
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, ready } = useAuth();
@@ -15,11 +16,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
   }, [user, ready, router]);
 
   if (!ready || user === null) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-white/70">
-        Cargando...
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return <>{children}</>;

@@ -57,140 +57,173 @@ export default function AuthModal() {
   };
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="glass-panel w-full max-w-[380px] min-h-[460px] rounded-2xl p-6 relative my-auto flex flex-col">
-        <div className="relative flex gap-0.5 p-1 rounded-full bg-white/10 mb-6 w-fit">
-          <span
-            className="absolute top-1 bottom-1 rounded-full bg-white/25 border border-white/20 pointer-events-none"
+    <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
+      <div className="ui-card-enter glass-panel relative w-full max-w-[400px] rounded-2xl p-8 sm:p-9">
+        <div className="mb-8 text-center">
+          <p className="brand-mark text-[0.6875rem] font-semibold uppercase tracking-[0.22em]">
+            SIGAC
+          </p>
+          <h2 className="mt-2 text-lg font-semibold tracking-tight text-white">
+            {isSignUp ? 'Crear cuenta' : 'Iniciar sesión'}
+          </h2>
+          <p className="mt-1.5 text-sm text-zinc-500">
+            {isSignUp
+              ? 'Acceso como colaborador'
+              : 'Entra con tu correo institucional'}
+          </p>
+        </div>
+
+        <div
+          className="relative mb-6 flex rounded-full border border-white/10 bg-zinc-900/50 p-1"
+          role="tablist"
+        >
+          <div
+            className="absolute top-1 bottom-1 z-0 rounded-full bg-white/12 shadow-sm transition-all duration-300 ease-out"
             style={{
-              left: isSignUp ? 4 : 'calc(50% + 2px)',
-              width: 'calc(50% - 6px)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.2)',
-              transition: 'left 0.3s ease-out'
+              left: isSignUp ? 4 : '50%',
+              width: 'calc(50% - 4px)',
             }}
           />
           <button
             type="button"
-            onClick={() => setIsSignUp(true)}
-            className={`relative z-1 w-[100px] py-1.5 rounded-full text-xs font-medium transition-colors duration-300 whitespace-nowrap ${isSignUp ? 'text-white' : 'text-white/60 hover:text-white/85'}`}
+            role="tab"
+            aria-selected={isSignUp}
+            onClick={() => {
+              setIsSignUp(true);
+              setError('');
+            }}
+            className={`relative z-10 flex-1 rounded-full py-2 text-xs font-medium transition-colors duration-300 ${
+              isSignUp ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+            }`}
           >
             Registro
           </button>
           <button
             type="button"
-            onClick={() => setIsSignUp(false)}
-            className={`relative z-1 w-[100px] py-1.5 rounded-full text-xs font-medium transition-colors duration-300 whitespace-nowrap ${!isSignUp ? 'text-white' : 'text-white/60 hover:text-white/85'}`}
+            role="tab"
+            aria-selected={!isSignUp}
+            onClick={() => {
+              setIsSignUp(false);
+              setError('');
+            }}
+            className={`relative z-10 flex-1 rounded-full py-2 text-xs font-medium transition-colors duration-300 ${
+              !isSignUp ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+            }`}
           >
-            Iniciar sesión
+            Entrar
           </button>
         </div>
 
-        {error && (
-          <div className="mb-3 rounded-lg bg-red-500/20 border border-red-400/40 px-3 py-2 text-xs text-red-200">
+        {error ? (
+          <div className="ui-alert-error mb-5" role="alert">
             {error}
           </div>
-        )}
-        <div className="relative min-h-[320px] flex-1">
+        ) : null}
+
+        <div className="relative min-h-[280px]">
           <div
-            className="absolute inset-0 space-y-3"
+            className="space-y-4 transition-all duration-300 ease-out"
             style={{
               opacity: isSignUp ? 1 : 0,
-              transform: isSignUp ? 'translateY(0)' : 'translateY(-6px)',
+              transform: isSignUp ? 'translateY(0)' : 'translateY(6px)',
               pointerEvents: isSignUp ? 'auto' : 'none',
-              transition: 'opacity 0.2s ease-out, transform 0.2s ease-out'
+              position: isSignUp ? 'relative' : 'absolute',
+              inset: isSignUp ? 'auto' : 0,
+              visibility: isSignUp ? 'visible' : 'hidden',
             }}
           >
-            <h1 className="text-xl font-bold text-white mb-4">Crear cuenta</h1>
-            <p className="text-white/55 text-xs mb-2">
-              El registro público crea una cuenta con rol colaborador.
-            </p>
-            <form onSubmit={handleRegister} className="space-y-3">
-              <input
-                type="text"
-                placeholder="Nombre"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="glass-input w-full rounded-lg px-3 h-10 text-white text-sm"
-              />
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                    <path d="M22 6l-10 7L2 6" />
-                  </svg>
-                </span>
+            <form onSubmit={handleRegister} className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-zinc-500">
+                  Nombre completo
+                </label>
+                <input
+                  type="text"
+                  autoComplete="name"
+                  placeholder="Tu nombre"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="glass-input h-11 w-full rounded-xl px-4 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-zinc-500">
+                  Correo
+                </label>
                 <input
                   type="email"
-                  placeholder="Email"
+                  autoComplete="email"
+                  placeholder="correo@ejemplo.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="glass-input w-full rounded-lg pl-9 pr-3 h-10 text-white text-sm"
+                  className="glass-input h-11 w-full rounded-xl px-4 text-sm"
                 />
               </div>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                </span>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-zinc-500">
+                  Contraseña
+                </label>
                 <input
                   type="password"
-                  placeholder="Contraseña (mín. 8 caracteres)"
+                  autoComplete="new-password"
+                  placeholder="Mínimo 8 caracteres"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="glass-input w-full rounded-lg pl-9 pr-3 h-10 text-white text-sm"
+                  className="glass-input h-11 w-full rounded-xl px-4 text-sm"
                 />
               </div>
-              <button type="submit" className="glass-button w-full h-10 rounded-lg font-medium text-white text-sm hover:opacity-95 transition-opacity mt-1">
+              <button
+                type="submit"
+                className="glass-button glass-button-primary mt-2 h-11 w-full rounded-xl text-sm font-medium"
+              >
                 Crear cuenta
               </button>
             </form>
           </div>
 
           <div
-            className="absolute inset-0 space-y-3"
+            className="space-y-4 transition-all duration-300 ease-out"
             style={{
               opacity: !isSignUp ? 1 : 0,
               transform: !isSignUp ? 'translateY(0)' : 'translateY(6px)',
               pointerEvents: !isSignUp ? 'auto' : 'none',
-              transition: 'opacity 0.2s ease-out, transform 0.2s ease-out'
+              position: !isSignUp ? 'relative' : 'absolute',
+              inset: !isSignUp ? 'auto' : 0,
+              visibility: !isSignUp ? 'visible' : 'hidden',
             }}
           >
-            <h1 className="text-xl font-bold text-white mb-4">Bienvenido</h1>
-            <form onSubmit={handleLogin} className="space-y-3">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                    <path d="M22 6l-10 7L2 6" />
-                  </svg>
-                </span>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-zinc-500">
+                  Correo
+                </label>
                 <input
                   type="email"
-                  placeholder="Email"
+                  autoComplete="email"
+                  placeholder="correo@ejemplo.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="glass-input w-full rounded-lg pl-9 pr-3 h-10 text-white text-sm"
+                  className="glass-input h-11 w-full rounded-xl px-4 text-sm"
                 />
               </div>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                </span>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-zinc-500">
+                  Contraseña
+                </label>
                 <input
                   type="password"
-                  placeholder="Contraseña"
+                  autoComplete="current-password"
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="glass-input w-full rounded-lg pl-9 pr-3 h-10 text-white text-sm"
+                  className="glass-input h-11 w-full rounded-xl px-4 text-sm"
                 />
               </div>
-              <button type="submit" className="glass-button w-full h-10 rounded-lg font-medium text-white text-sm hover:opacity-95 transition-opacity">
-                Iniciar sesión
+              <button
+                type="submit"
+                className="glass-button glass-button-primary mt-2 h-11 w-full rounded-xl text-sm font-medium"
+              >
+                Continuar
               </button>
             </form>
           </div>

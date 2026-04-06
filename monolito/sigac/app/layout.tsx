@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SIGAC - Sistema de Actividades Colaborativas",
-  description: "Actividades y disponibilidad por roles",
+  title: "SIGAC — Actividades colaborativas",
+  description: "Coordinación de disponibilidad y actividades por roles",
 };
 
 export default function RootLayout({
@@ -26,7 +26,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
         <AuthProvider>{children}</AuthProvider>
       </body>

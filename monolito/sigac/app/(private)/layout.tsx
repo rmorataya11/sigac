@@ -8,9 +8,9 @@ export default function PrivateLayout({
 }) {
   return (
     <RequireAuth>
-      <div className="min-h-screen flex flex-col bg-zinc-950 text-white">
+      <div className="app-shell text-zinc-100">
         <PrivateNav />
-        <main className="flex-1 p-6">{children}</main>
+        <main className="app-main ui-fade-in-delayed">{children}</main>
       </div>
     </RequireAuth>
   );

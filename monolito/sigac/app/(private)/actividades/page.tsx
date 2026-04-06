@@ -4,6 +4,8 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { activitiesService } from '@/lib/services/activities';
 import { activityDateOnly, type Activity, type ActivityStatusApi } from '@/lib/types';
+import PageHeader from '@/components/PageHeader';
+import { activityStatusBadgeClass } from '@/lib/ui/activity-status-badge';
 
 function statusLabel(s: ActivityStatusApi): string {
   switch (s) {
@@ -117,80 +119,115 @@ export default function ActividadesPage() {
   const sorted = useMemo(
     () =>
       [...activities].sort((a, b) =>
-        activityDateOnly(b).localeCompare(activityDateOnly(a))
+        activityDateOnly(b).localeCompare(activityDateOnly(a)),
       ),
-    [activities]
+    [activities],
   );
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">Actividades</h1>
+    <div>
+      <PageHeader
+        title="Actividades"
+        description="Consulta el calendario colaborativo. Como administrador puedes crear nuevas actividades en borrador."
+      />
 
-      {listError && (
-        <p className="text-sm text-red-300">{listError}</p>
-      )}
+      {listError ? (
+        <div className="ui-alert-error mb-6" role="alert">
+          {listError}
+        </div>
+      ) : null}
 
-      {isAdmin && (
-        <form onSubmit={handleCreate} className="glass-panel rounded-2xl p-6 space-y-4">
-          <h2 className="font-semibold">Nueva actividad</h2>
-          {formError && (
-            <p className="text-sm text-red-300">{formError}</p>
-          )}
-          <input
-            type="text"
-            placeholder="Título"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="glass-input w-full rounded-xl px-4 h-11 text-white text-sm"
-          />
-          <textarea
-            placeholder="Descripción (opcional)"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={2}
-            className="glass-input w-full rounded-xl px-4 py-3 text-white text-sm resize-none"
-          />
-          <div className="flex flex-wrap gap-3 items-end">
+      {isAdmin ? (
+        <form
+          onSubmit={handleCreate}
+          className="glass-panel mb-10 space-y-5 rounded-2xl p-6 sm:p-7"
+        >
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
+              Nueva actividad
+            </h2>
+            <p className="mt-1 text-xs text-zinc-600">
+              Se crea en borrador hasta confirmarla.
+            </p>
+          </div>
+          {formError ? (
+            <div className="ui-alert-error" role="alert">
+              {formError}
+            </div>
+          ) : null}
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-zinc-500">
+              Título
+            </label>
+            <input
+              type="text"
+              placeholder="Ej. Reunión de equipo"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="glass-input h-11 w-full rounded-xl px-4 text-sm"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-zinc-500">
+              Descripción (opcional)
+            </label>
+            <textarea
+              placeholder="Detalles o notas"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              className="glass-input w-full resize-none rounded-xl px-4 py-3 text-sm"
+            />
+          </div>
+          <div className="flex flex-wrap gap-4">
             <div>
-              <label className="block text-white/60 text-xs mb-1">Fecha</label>
+              <label className="mb-1.5 block text-xs font-medium text-zinc-500">
+                Fecha
+              </label>
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="glass-input rounded-xl px-4 h-11 text-white text-sm"
+                className="glass-input h-11 rounded-xl px-4 text-sm"
               />
             </div>
             <div>
-              <label className="block text-white/60 text-xs mb-1">Inicio</label>
+              <label className="mb-1.5 block text-xs font-medium text-zinc-500">
+                Inicio
+              </label>
               <input
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="glass-input rounded-xl px-4 h-11 text-white text-sm"
+                className="glass-input h-11 rounded-xl px-4 text-sm"
               />
             </div>
             <div>
-              <label className="block text-white/60 text-xs mb-1">Fin</label>
+              <label className="mb-1.5 block text-xs font-medium text-zinc-500">
+                Fin
+              </label>
               <input
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="glass-input rounded-xl px-4 h-11 text-white text-sm"
+                className="glass-input h-11 rounded-xl px-4 text-sm"
               />
             </div>
             <div>
-              <label className="block text-white/60 text-xs mb-1">Quórum mín.</label>
+              <label className="mb-1.5 block text-xs font-medium text-zinc-500">
+                Quórum mín.
+              </label>
               <input
                 type="number"
                 min={1}
                 value={minimumQuorum}
                 onChange={(e) => setMinimumQuorum(Number(e.target.value))}
-                className="glass-input rounded-xl px-4 h-11 text-white text-sm w-24"
+                className="glass-input h-11 w-24 rounded-xl px-4 text-sm"
               />
             </div>
           </div>
           <div>
-            <label className="block text-white/60 text-xs mb-1">
+            <label className="mb-1.5 block text-xs font-medium text-zinc-500">
               IDs de participantes (opcional, separados por coma)
             </label>
             <input
@@ -198,66 +235,78 @@ export default function ActividadesPage() {
               placeholder="id1, id2"
               value={participantIds}
               onChange={(e) => setParticipantIds(e.target.value)}
-              className="glass-input w-full rounded-xl px-4 h-11 text-white text-sm"
+              className="glass-input h-11 w-full rounded-xl px-4 text-sm"
             />
           </div>
           <button
             type="submit"
             disabled={submitting}
-            className="glass-button px-6 py-2.5 rounded-xl font-medium text-white hover:opacity-95 disabled:opacity-50"
+            className="glass-button glass-button-primary h-11 rounded-xl px-6 text-sm font-medium disabled:opacity-50"
           >
             {submitting ? 'Creando…' : 'Crear actividad'}
           </button>
         </form>
-      )}
+      ) : null}
 
       <section>
-        <h2 className="text-lg font-semibold mb-3">Lista de actividades</h2>
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-500">
+          Lista
+        </h2>
         {loading ? (
-          <p className="text-white/50">Cargando…</p>
+          <div className="space-y-3">
+            <div className="ui-skeleton h-24 rounded-xl" />
+            <div className="ui-skeleton h-24 rounded-xl" />
+            <div className="ui-skeleton h-24 rounded-xl" />
+          </div>
         ) : (
-        <ul className="space-y-2">
-          {sorted.length === 0 ? (
-            <li className="text-white/50">No hay actividades.</li>
-          ) : (
-            sorted.map((a) => {
-              const canCancel =
-                isAdmin && (a.status === 'DRAFT' || a.status === 'CONFIRMED');
-              return (
-              <li
-                key={a.id}
-                className="glass-panel rounded-xl px-4 py-3 flex justify-between items-start gap-4"
-              >
-                <div className="min-w-0">
-                  <span className="font-medium">{a.title}</span>
-                  <span className="text-white/50 text-sm ml-2">
-                    {activityDateOnly(a)} · {a.startTime}–{a.endTime}
-                  </span>
-                  <span className="text-white/50 text-sm ml-2">
-                    ({statusLabel(a.status)})
-                  </span>
-                  <p className="text-white/70 text-sm mt-1">{a.description ?? '—'}</p>
-                  {(a.participants?.length ?? 0) > 0 && (
-                    <p className="text-white/50 text-xs mt-1">
-                      Participantes:{' '}
-                      {(a.participants ?? []).map((p) => p.user.fullName).join(', ')}
-                    </p>
-                  )}
-                </div>
-                {canCancel && (
-                  <button
-                    type="button"
-                    onClick={() => handleCancel(a.id)}
-                    className="shrink-0 px-3 py-1.5 rounded-lg text-sm text-red-300 hover:bg-red-500/20 transition-colors"
+          <ul className="space-y-3">
+            {sorted.length === 0 ? (
+              <li className="text-sm text-zinc-500">No hay actividades.</li>
+            ) : (
+              sorted.map((a) => {
+                const canCancel =
+                  isAdmin && (a.status === 'DRAFT' || a.status === 'CONFIRMED');
+                return (
+                  <li
+                    key={a.id}
+                    className="glass-panel glass-panel-interactive flex flex-col gap-3 rounded-xl px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
                   >
-                    Cancelar
-                  </button>
-                )}
-              </li>
-            );
-            })
-          )}
-        </ul>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-zinc-100">{a.title}</span>
+                        <span className={activityStatusBadgeClass(a.status)}>
+                          {statusLabel(a.status)}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-zinc-500">
+                        {activityDateOnly(a)} · {a.startTime}–{a.endTime}
+                      </p>
+                      {a.description ? (
+                        <p className="mt-2 text-sm text-zinc-400">{a.description}</p>
+                      ) : null}
+                      {(a.participants?.length ?? 0) > 0 ? (
+                        <p className="mt-2 text-xs text-zinc-500">
+                          Participantes:{' '}
+                          {(a.participants ?? [])
+                            .map((p) => p.user.fullName)
+                            .join(', ')}
+                        </p>
+                      ) : null}
+                    </div>
+                    {canCancel ? (
+                      <button
+                        type="button"
+                        onClick={() => handleCancel(a.id)}
+                        className="shrink-0 self-start rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-300 transition-all duration-200 hover:border-red-500/40 hover:bg-red-500/20 active:scale-[0.98]"
+                      >
+                        Cancelar
+                      </button>
+                    ) : null}
+                  </li>
+                );
+              })
+            )}
+          </ul>
         )}
       </section>
     </div>
