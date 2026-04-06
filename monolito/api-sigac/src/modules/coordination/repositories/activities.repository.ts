@@ -28,6 +28,18 @@ export class ActivitiesRepository {
     });
   }
 
+  findAllForParticipantUser(
+    userId: string,
+  ): Promise<ActivityWithParticipants[]> {
+    return this.prisma.activity.findMany({
+      where: { participants: { some: { userId } } },
+      orderBy: [{ activityDate: 'asc' }, { startTime: 'asc' }],
+      include: {
+        participants: { include: { user: { select: userPublic } } },
+      },
+    });
+  }
+
   findById(id: string): Promise<ActivityWithParticipants | null> {
     return this.prisma.activity.findUnique({
       where: { id },
@@ -87,6 +99,22 @@ export class ActivitiesRepository {
     return this.prisma.activity.update({
       where: { id },
       data: { status },
+    });
+  }
+
+  /** F.A.03: cancelar y libera participantes en la tabla intermedia. */
+  cancelAndClearParticipants(
+    id: string,
+  ): Promise<ActivityWithParticipants> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.activityParticipant.deleteMany({ where: { activityId: id } });
+      return tx.activity.update({
+        where: { id },
+        data: { status: ActivityStatus.CANCELLED },
+        include: {
+          participants: { include: { user: { select: userPublic } } },
+        },
+      });
     });
   }
 

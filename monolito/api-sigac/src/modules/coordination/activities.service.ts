@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ActivityStatus, Prisma } from '@prisma/client';
+import { ActivityStatus, Prisma, Role } from '@prisma/client';
 import {
   intervalFullyContains,
   isValidTimeFormat,
@@ -19,6 +19,7 @@ import {
 } from './repositories/activities.repository';
 import { CreateActivityDto } from './dto/create-activity.dto';
 import { UpdateActivityDto } from './dto/update-activity.dto';
+import type { PublicUser } from '../../common/types/public-user.type';
 
 @Injectable()
 export class ActivitiesService {
@@ -27,14 +28,28 @@ export class ActivitiesService {
     private readonly availabilityRepository: AvailabilityRepository,
   ) {}
 
-  findAll(): Promise<ActivityWithParticipants[]> {
-    return this.activitiesRepository.findAll();
+  findAllForUser(user: PublicUser): Promise<ActivityWithParticipants[]> {
+    if (user.role === Role.ADMIN) {
+      return this.activitiesRepository.findAll();
+    }
+    return this.activitiesRepository.findAllForParticipantUser(user.id);
   }
 
-  async findOne(id: string): Promise<ActivityWithParticipants> {
+  async findOneForUser(
+    id: string,
+    user: PublicUser,
+  ): Promise<ActivityWithParticipants> {
     const activity = await this.activitiesRepository.findById(id);
     if (!activity) {
       throw new NotFoundException('Actividad no encontrada');
+    }
+    if (user.role !== Role.ADMIN) {
+      const participates = activity.participants.some(
+        (p) => p.userId === user.id,
+      );
+      if (!participates) {
+        throw new NotFoundException('Actividad no encontrada');
+      }
     }
     return activity;
   }
@@ -194,12 +209,7 @@ export class ActivitiesService {
         'No se puede cancelar una actividad finalizada',
       );
     }
-    await this.activitiesRepository.updateStatus(id, ActivityStatus.CANCELLED);
-    const updated = await this.activitiesRepository.findById(id);
-    if (!updated) {
-      throw new NotFoundException('Actividad no encontrada');
-    }
-    return updated;
+    return this.activitiesRepository.cancelAndClearParticipants(id);
   }
 
   getDashboardSummary() {

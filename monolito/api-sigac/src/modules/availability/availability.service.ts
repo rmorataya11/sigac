@@ -31,6 +31,12 @@ export class AvailabilityService {
     const date = this.parseAndValidateDate(dto.date);
     this.assertValidTimes(dto.startTime, dto.endTime);
     await this.assertNoOverlap(userId, date, dto.startTime, dto.endTime, null);
+    await this.assertNoOverlapWithConfirmedActivity(
+      userId,
+      date,
+      dto.startTime,
+      dto.endTime,
+    );
     return this.availabilityRepository.create({
       user: { connect: { id: userId } },
       date,
@@ -66,6 +72,12 @@ export class AvailabilityService {
 
     this.assertValidTimes(startTime, endTime);
     await this.assertNoOverlap(userId, date, startTime, endTime, id);
+    await this.assertNoOverlapWithConfirmedActivity(
+      userId,
+      date,
+      startTime,
+      endTime,
+    );
 
     return this.availabilityRepository.update(id, {
       date,
@@ -124,6 +136,26 @@ export class AvailabilityService {
           'El intervalo se traslapa con otra disponibilidad del mismo día',
         );
       }
+    }
+  }
+
+  private async assertNoOverlapWithConfirmedActivity(
+    userId: string,
+    date: Date,
+    startTime: string,
+    endTime: string,
+  ): Promise<void> {
+    const overlaps =
+      await this.availabilityRepository.userOverlapsConfirmedActivitySlot(
+        userId,
+        date,
+        startTime,
+        endTime,
+      );
+    if (overlaps) {
+      throw new BadRequestException(
+        'No puedes registrar disponibilidad en un horario que se traslapa con una actividad confirmada en tu agenda',
+      );
     }
   }
 }

@@ -43,17 +43,28 @@ export class ActivitiesController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Listar actividades' })
+  @ApiOperation({
+    summary: 'Listar actividades',
+    description:
+      'ADMIN: todas. COLABORADOR: solo actividades en las que participa (UC-07).',
+  })
   @ApiOkResponse({ description: 'Lista con participantes y usuario' })
-  findAll() {
-    return this.activitiesService.findAll();
+  findAll(@AuthenticatedUser() user: PublicUser) {
+    return this.activitiesService.findAllForUser(user);
   }
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Detalle de actividad' })
-  findOne(@Param('id') id: string) {
-    return this.activitiesService.findOne(id);
+  @ApiOperation({
+    summary: 'Detalle de actividad',
+    description:
+      'COLABORADOR: solo si es participante; si no, 404.',
+  })
+  findOne(
+    @Param('id') id: string,
+    @AuthenticatedUser() user: PublicUser,
+  ) {
+    return this.activitiesService.findOneForUser(id, user);
   }
 
   @Post()

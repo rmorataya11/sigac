@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Availability, Prisma } from '@prisma/client';
+import { ActivityStatus, Availability, Prisma } from '@prisma/client';
+import { rangesOverlap } from '../../../common/utils/time-range.util';
 import { PrismaService } from '../../../database/prisma.service';
 
 export type AvailabilityWithUser = Availability & {
@@ -58,5 +59,27 @@ export class AvailabilityRepository {
 
   delete(id: string): Promise<Availability> {
     return this.prisma.availability.delete({ where: { id } });
+  }
+
+  /**
+   * F.A.01: solape con actividad CONFIRMADA donde el usuario participa (misma fecha).
+   */
+  async userOverlapsConfirmedActivitySlot(
+    userId: string,
+    date: Date,
+    startTime: string,
+    endTime: string,
+  ): Promise<boolean> {
+    const acts = await this.prisma.activity.findMany({
+      where: {
+        status: ActivityStatus.CONFIRMED,
+        activityDate: date,
+        participants: { some: { userId } },
+      },
+      select: { startTime: true, endTime: true },
+    });
+    return acts.some((a) =>
+      rangesOverlap(startTime, endTime, a.startTime, a.endTime),
+    );
   }
 }
