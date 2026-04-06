@@ -1,32 +1,39 @@
 'use client';
 
 import type { Activity } from '@/lib/types';
-import { store } from '@/lib/store';
+import { apiGet, apiPatch, apiPost } from '@/lib/api-client';
 
-function nextId(list: Activity[]): string {
-  const nums = list.map((a) => parseInt(a.id.replace(/\D/g, '') || '0', 10));
-  return 'a' + String((nums.length ? Math.max(...nums) : 0) + 1);
-}
+export type CreateActivityInput = {
+  title: string;
+  description?: string;
+  activityDate: string;
+  startTime: string;
+  endTime: string;
+  minimumQuorum: number;
+  participantUserIds?: string[];
+};
 
 export const activitiesService = {
-  getAll(): Activity[] {
-    return store.getActivities();
+  async list(): Promise<Activity[]> {
+    return apiGet<Activity[]>('/activities');
   },
 
-  create(title: string, description: string, date: string): Activity {
-    const list = store.getActivities();
-    const newActivity: Activity = {
-      id: nextId(list),
-      title: title.trim(),
-      description: description.trim(),
-      date,
-    };
-    store.setActivities([...list, newActivity]);
-    return newActivity;
+  async create(input: CreateActivityInput): Promise<Activity> {
+    return apiPost<Activity>('/activities', {
+      title: input.title.trim(),
+      description: input.description?.trim() || undefined,
+      activityDate: input.activityDate,
+      startTime: input.startTime,
+      endTime: input.endTime,
+      minimumQuorum: input.minimumQuorum,
+      participantUserIds:
+        input.participantUserIds && input.participantUserIds.length > 0
+          ? input.participantUserIds
+          : undefined,
+    });
   },
 
-  deleteById(id: string): void {
-    const list = store.getActivities().filter((a) => a.id !== id);
-    store.setActivities(list);
+  async cancel(id: string): Promise<Activity> {
+    return apiPatch<Activity>(`/activities/${id}/cancel`, {});
   },
 };

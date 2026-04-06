@@ -18,12 +18,35 @@ export interface SessionUser {
   role: Role;
 }
 
-/** Actividad */
+/** Estados de actividad (API Prisma / NestJS) */
+export type ActivityStatusApi = 'DRAFT' | 'CONFIRMED' | 'CANCELLED' | 'FINALIZADA';
+
+/** Participante con usuario (respuesta API) */
+export interface ActivityParticipant {
+  id: string;
+  activityId: string;
+  userId: string;
+  user: { id: string; fullName: string; email: string };
+}
+
+/** Actividad (lista/detalle desde GET /activities) */
 export interface Activity {
   id: string;
   title: string;
-  description: string;
-  date: string; // YYYY-MM-DD
+  description: string | null;
+  activityDate: string;
+  startTime: string;
+  endTime: string;
+  minimumQuorum: number;
+  status: ActivityStatusApi;
+  createdById: string;
+  participants: ActivityParticipant[];
+}
+
+/** Fecha YYYY-MM-DD a partir del JSON de la API (ISO). */
+export function activityDateOnly(a: Pick<Activity, 'activityDate'>): string {
+  const s = a.activityDate;
+  return s.length >= 10 ? s.slice(0, 10) : s;
 }
 
 /** Estado de disponibilidad */

@@ -1,9 +1,8 @@
 'use client';
 
-import type { User, Activity, Availability } from './types';
+import type { User, Availability } from './types';
 
 const USERS_KEY = 'sigac_users';
-const ACTIVITIES_KEY = 'sigac_activities';
 const AVAILABILITY_KEY = 'sigac_availability';
 const SESSION_KEY = 'sigac_session';
 
@@ -40,34 +39,12 @@ const initialUsers: User[] = [
   },
 ];
 
-/** Actividades de ejemplo */
-const initialActivities: Activity[] = [
-  {
-    id: 'a1',
-    title: 'Reunión de planificación',
-    description: 'Revisión del sprint y prioridades',
-    date: new Date().toISOString().slice(0, 10),
-  },
-  {
-    id: 'a2',
-    title: 'Taller de diseño',
-    description: 'Sesión de ideación con el equipo',
-    date: new Date(Date.now() + 86400000 * 2).toISOString().slice(0, 10),
-  },
-];
-
 export const store = {
   getUsers(): User[] {
     return loadJson<User[]>(USERS_KEY, initialUsers);
   },
   setUsers(users: User[]): void {
     saveJson(USERS_KEY, users);
-  },
-  getActivities(): Activity[] {
-    return loadJson<Activity[]>(ACTIVITIES_KEY, initialActivities);
-  },
-  setActivities(activities: Activity[]): void {
-    saveJson(ACTIVITIES_KEY, activities);
   },
   getAvailability(): Availability[] {
     return loadJson<Availability[]>(AVAILABILITY_KEY, []);

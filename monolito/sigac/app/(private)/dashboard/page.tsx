@@ -1,14 +1,17 @@
 'use client';
 
+import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { store } from '@/lib/store';
 import { activitiesService } from '@/lib/services/activities';
 import { availabilityService } from '@/lib/services/availability';
+import { activityDateOnly, type Activity } from '@/lib/types';
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const users = store.getUsers();
-  const activities = activitiesService.getAll();
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(true);
   const availability = availabilityService.getAll();
 
   const totalUsers = users.length;
@@ -17,11 +20,35 @@ export default function DashboardPage() {
 
   const isAdmin = user?.role === 'ADMIN';
 
-  // Próximas actividades (fecha >= hoy)
-  const today = new Date().toISOString().slice(0, 10);
-  const upcomingActivities = activities.filter((a) => a.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await activitiesService.list();
+        if (!cancelled) setActivities(list);
+      } catch {
+        if (!cancelled) setActivities([]);
+      } finally {
+        if (!cancelled) setActivitiesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  // Estado personal (colaborador): sus disponibilidades y próxima actividad
+  const today = new Date().toISOString().slice(0, 10);
+  const upcomingActivities = useMemo(() => {
+    return activities
+      .filter((a) => {
+        const d = activityDateOnly(a);
+        if (d < today) return false;
+        if (a.status === 'CANCELLED' || a.status === 'FINALIZADA') return false;
+        return true;
+      })
+      .sort((a, b) => activityDateOnly(a).localeCompare(activityDateOnly(b)));
+  }, [activities, today]);
+
   const myAvailability = user ? availabilityService.getByUserId(user.id) : [];
   const nextActivity = upcomingActivities[0];
 
@@ -47,27 +74,36 @@ export default function DashboardPage() {
           </section>
           <section>
             <h2 className="text-lg font-semibold mb-3">Actividades registradas</h2>
+            {activitiesLoading ? (
+              <p className="text-white/50">Cargando actividades…</p>
+            ) : (
             <ul className="space-y-2">
               {activities.length === 0 ? (
                 <li className="text-white/50">No hay actividades.</li>
               ) : (
                 activities.map((a) => (
-                  <li key={a.id} className="glass-panel rounded-xl px-4 py-3 flex justify-between items-center">
+                  <li key={a.id} className="glass-panel rounded-xl px-4 py-3 flex justify-between items-center gap-4">
                     <div>
                       <span className="font-medium">{a.title}</span>
-                      <span className="text-white/50 text-sm ml-2">{a.date}</span>
+                      <span className="text-white/50 text-sm ml-2">
+                        {activityDateOnly(a)} · {a.startTime}–{a.endTime}
+                      </span>
                     </div>
-                    <p className="text-white/70 text-sm truncate max-w-xs">{a.description}</p>
+                    <p className="text-white/70 text-sm truncate max-w-xs">{a.description ?? '—'}</p>
                   </li>
                 ))
               )}
             </ul>
+            )}
           </section>
         </>
       ) : (
         <>
           <section>
             <h2 className="text-lg font-semibold mb-3">Próximas actividades</h2>
+            {activitiesLoading ? (
+              <p className="text-white/50">Cargando…</p>
+            ) : (
             <ul className="space-y-2">
               {upcomingActivities.length === 0 ? (
                 <li className="text-white/50">No hay próximas actividades.</li>
@@ -75,19 +111,22 @@ export default function DashboardPage() {
                 upcomingActivities.map((a) => (
                   <li key={a.id} className="glass-panel rounded-xl px-4 py-3">
                     <span className="font-medium">{a.title}</span>
-                    <span className="text-white/50 text-sm ml-2">{a.date}</span>
-                    <p className="text-white/70 text-sm mt-1">{a.description}</p>
+                    <span className="text-white/50 text-sm ml-2">
+                      {activityDateOnly(a)} · {a.startTime}–{a.endTime}
+                    </span>
+                    <p className="text-white/70 text-sm mt-1">{a.description ?? '—'}</p>
                   </li>
                 ))
               )}
             </ul>
+            )}
           </section>
           <section className="glass-panel rounded-2xl p-4">
             <h2 className="text-lg font-semibold mb-2">Estado personal</h2>
             <p className="text-white/70 text-sm">Registros de disponibilidad: {myAvailability.length}</p>
             {nextActivity && (
               <p className="text-white/70 text-sm mt-1">
-                Próxima actividad: <strong>{nextActivity.title}</strong> ({nextActivity.date})
+                Próxima actividad: <strong>{nextActivity.title}</strong> ({activityDateOnly(nextActivity)})
               </p>
             )}
           </section>
