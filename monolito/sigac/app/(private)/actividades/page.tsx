@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { activitiesService } from '@/lib/services/activities';
@@ -490,6 +491,12 @@ export default function ActividadesPage() {
                         <span className={activityStatusBadgeClass(a.status)}>
                           {statusLabel(a.status)}
                         </span>
+                        <Link
+                          href={`/actividades/${a.id}`}
+                          className="text-xs font-medium text-violet-400/90 underline-offset-4 transition-colors hover:text-violet-300 hover:underline"
+                        >
+                          Ver ficha
+                        </Link>
                       </div>
                       <p className="mt-1 text-sm text-zinc-500">
                         {activityDateOnly(a)} · {a.startTime}–{a.endTime}

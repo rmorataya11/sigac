@@ -29,7 +29,7 @@ export interface ActivityParticipant {
   user: { id: string; fullName: string; email: string };
 }
 
-/** Actividad (lista/detalle desde GET /activities) */
+/** Actividad (lista: GET /activities; detalle: GET /activities/:id) */
 export interface Activity {
   id: string;
   title: string;

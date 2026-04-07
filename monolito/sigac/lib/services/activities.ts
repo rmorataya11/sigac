@@ -37,6 +37,11 @@ export const activitiesService = {
     return apiGet<Activity[]>('/activities');
   },
 
+  /** GET /activities/:id — detalle; colaborador solo si participa. */
+  async get(id: string): Promise<Activity> {
+    return apiGet<Activity>(`/activities/${encodeURIComponent(id)}`);
+  },
+
   async getDashboardSummary(): Promise<ActivitiesDashboardSummary> {
     return apiGet<ActivitiesDashboardSummary>('/activities/dashboard/summary');
   },
