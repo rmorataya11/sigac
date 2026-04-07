@@ -4,16 +4,24 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
-const navItems = [
-  { href: '/dashboard', label: 'Panel' },
-  { href: '/actividades', label: 'Actividades' },
-  { href: '/disponibilidad', label: 'Disponibilidad' },
-] as const;
-
 export default function PrivateNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+
+  const navItems =
+    user?.role === 'ADMIN'
+      ? ([
+          { href: '/dashboard', label: 'Panel' },
+          { href: '/actividades', label: 'Actividades' },
+          { href: '/disponibilidad', label: 'Disponibilidad' },
+          { href: '/auditoria', label: 'Auditoría' },
+        ] as const)
+      : ([
+          { href: '/dashboard', label: 'Panel' },
+          { href: '/actividades', label: 'Actividades' },
+          { href: '/disponibilidad', label: 'Disponibilidad' },
+        ] as const);
 
   const handleLogout = () => {
     logout();

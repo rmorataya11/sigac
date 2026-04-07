@@ -71,3 +71,23 @@ export function availabilityDateOnly(a: Pick<Availability, 'date'>): string {
   const s = a.date;
   return typeof s === 'string' && s.length >= 10 ? s.slice(0, 10) : String(s);
 }
+
+/** Acciones registradas en auditoría (GET /audit/logs) */
+export type AuditActionApi =
+  | 'ACTIVITY_CREATED'
+  | 'ACTIVITY_UPDATED'
+  | 'ACTIVITY_CONFIRMED'
+  | 'ACTIVITY_CANCELLED';
+
+/** Entrada de log (API incluye usuario) */
+export interface AuditLogEntry {
+  id: string;
+  userId: string;
+  action: AuditActionApi;
+  resourceType: string;
+  resourceId: string;
+  payloadBefore: unknown | null;
+  payloadAfter: unknown | null;
+  createdAt: string;
+  user: { id: string; fullName: string; email: string };
+}
