@@ -31,6 +31,18 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3000/health',function(r){process.exit(r.statusCode===200?0:1)}).on('error',function(){process.exit(1)})",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 45s
     environment:
       DATABASE_URL: postgresql://sigac:sigac@postgres:5432/sigac?schema=public
       JWT_SECRET: ${JWT_SECRET:-cambia-esto-en-produccion-minimo-32-caracteres!!}
@@ -55,7 +67,8 @@ services:
     ports:
       - "3001:3000"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   postgres_data:
