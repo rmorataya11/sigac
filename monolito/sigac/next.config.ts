@@ -7,6 +7,8 @@ import path from "path";
  * y aparecen errores opacos en desarrollo.
  */
 const nextConfig: NextConfig = {
+  /** Imagen Docker más pequeña (`monolito/sigac/Dockerfile`). */
+  output: "standalone",
   turbopack: {
     root: path.resolve(process.cwd()),
   },

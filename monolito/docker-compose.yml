@@ -1,0 +1,61 @@
+# Uso: desde esta carpeta (`monolito/`)
+#   docker compose up --build
+# Luego: http://localhost:3001 (front) y http://localhost:3000 (API + /docs)
+#
+# Seed opcional (admin de prueba):
+#   docker compose exec api npx prisma db seed
+#
+# Si entras desde otra máquina en la red, reconstruye el front con:
+#   NEXT_PUBLIC_API_URL=http://IP_DE_ESTA_PC:3000 docker compose build web
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sigac
+      POSTGRES_PASSWORD: sigac
+      POSTGRES_DB: sigac
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sigac -d sigac"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./api-sigac
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://sigac:sigac@postgres:5432/sigac?schema=public
+      JWT_SECRET: ${JWT_SECRET:-cambia-esto-en-produccion-minimo-32-caracteres!!}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
+      PORT: 3000
+      FRONTEND_ORIGIN: http://localhost:3001
+      MAIL_SMTP_HOST: ${MAIL_SMTP_HOST:-}
+      MAIL_SMTP_PORT: ${MAIL_SMTP_PORT:-2525}
+      MAIL_SMTP_USER: ${MAIL_SMTP_USER:-}
+      MAIL_SMTP_PASS: ${MAIL_SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-SIGAC <noreply@sigac.local>}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./sigac
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3000
+    ports:
+      - "3001:3000"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
